@@ -6,6 +6,13 @@ using UnityEngine.EventSystems;
 
 public class MenuScript : MonoBehaviour
 {
+    //panels
+    public GameObject projectPanel;
+    public GameObject profilePanel;
+    public GameObject aboutRampedPanel;
+    public GameObject feedbackPanel;
+
+    //whitebox + animation
     public GameObject whiteBox;
     private Animator anim;
 
@@ -16,13 +23,17 @@ public class MenuScript : MonoBehaviour
         //get then disable animator on start to stop it from playing the default animation
         anim = whiteBox.GetComponent<Animator>();
         anim.enabled = false;
+        //only show project panel at start
+        profilePanel.SetActive(false);
+        aboutRampedPanel.SetActive(false);
+        feedbackPanel.SetActive(false);
+        projectPanel.SetActive(true);
     }
 
     void Update()
     {
         if(Input.GetMouseButtonDown(0) == true && menuIsOpen == true && isMouseOverWhiteBox() == false)
         {
-            Debug.Log("You have clicked away the menu button!");
             //enable the animator component
             //play the Slidein animation
             anim.Play("SlideWhiteBoxOut");
@@ -32,7 +43,6 @@ public class MenuScript : MonoBehaviour
 
     public void OpenMenuOnClick()
     {
-        Debug.Log("You have clicked open the menu button!");
         //enable the animator component
         anim.enabled = true;
         //play the Slidein animation
@@ -47,14 +57,87 @@ public class MenuScript : MonoBehaviour
         if (mousePosition.x >= 0 && mousePosition.x < 220
            && mousePosition.y >= 0 && mousePosition.y < 480)
         {
-            Debug.Log("yessir, in the box");
-            Debug.Log(Input.mousePosition);
             return true;
         }
-        Debug.Log("not in the box");
-        Debug.Log(Input.mousePosition);
         return false;
-    }    
+    }
 
+    public void OpenProfile()
+    {
+        //set all panels to false, set one we want to true
+        Debug.Log("Profile button clicked");
+        projectPanel.SetActive(false);
+        aboutRampedPanel.SetActive(false);
+        feedbackPanel.SetActive(false);
+        profilePanel.SetActive(true);
+        
+        if (menuIsOpen == true)
+        {
+            //enable the animator component
+            //play the Slidein animation
+            anim.Play("SlideWhiteBoxOut");
+            menuIsOpen = false;
+        }
+    }
+
+    public void OpenMyProjects()
+    {
+        //set all panels to false, set one we want to true
+        Debug.Log("My Projects button clicked");
+        profilePanel.SetActive(false);
+        aboutRampedPanel.SetActive(false);
+        feedbackPanel.SetActive(false);
+        projectPanel.SetActive(true);
+
+        if (menuIsOpen == true)
+        {
+            //enable the animator component
+            //play the Slidein animation
+            anim.Play("SlideWhiteBoxOut");
+            menuIsOpen = false;
+        }
+    }
+
+    public void OpenAboutRamped()
+    {
+        Debug.Log("About Ramped button clicked");
+        //set all panels to false, set one we want to true
+        profilePanel.SetActive(false);
+        feedbackPanel.SetActive(false);
+        projectPanel.SetActive(false);
+        aboutRampedPanel.SetActive(true);
+
+        if (menuIsOpen == true)
+        {
+            //enable the animator component
+            //play the Slidein animation
+            anim.Play("SlideWhiteBoxOut");
+            menuIsOpen = false;
+        }
+    }
+
+    public void SendFeedbackButton()
+    {
+        Debug.Log("Send Feedback button clicked");
+        //set all panels to false, set one we want to true
+        profilePanel.SetActive(false);
+        projectPanel.SetActive(false);
+        aboutRampedPanel.SetActive(false);
+        feedbackPanel.SetActive(true);
+
+        if (menuIsOpen == true)
+        {
+            //enable the animator component
+            //play the Slidein animation
+            anim.Play("SlideWhiteBoxOut");
+            menuIsOpen = false;
+        }
+
+    }
+
+    public void NewProjectButton()
+    {
+        Debug.Log("New Project button clicked");
+    }
 }
 
