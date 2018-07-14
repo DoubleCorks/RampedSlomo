@@ -3,9 +3,19 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using DeadMosquito.AndroidGoodies;
+
+using System;
+using System.IO;
+using System.Linq;
+using JetBrains.Annotations;
 
 public class MenuScript : MonoBehaviour
 {
+
+    //thumbnail?
+    public Image image;
+
     //panels
     public GameObject projectPanel;
     public GameObject profilePanel;
@@ -15,6 +25,7 @@ public class MenuScript : MonoBehaviour
     //whitebox + animation
     public GameObject whiteBox;
     private Animator anim;
+    private SceneLoader loader;
 
     public bool menuIsOpen = false;
 
@@ -30,17 +41,6 @@ public class MenuScript : MonoBehaviour
         projectPanel.SetActive(true);
     }
 
-    void Update()
-    {
-        if(Input.GetMouseButtonDown(0) == true && menuIsOpen == true && isMouseOverWhiteBox() == false)
-        {
-            //enable the animator component
-            //play the Slidein animation
-            anim.Play("SlideWhiteBoxOut");
-            menuIsOpen = false;
-        }
-    }
-
     public void OpenMenuOnClick()
     {
         //enable the animator component
@@ -50,17 +50,6 @@ public class MenuScript : MonoBehaviour
         menuIsOpen = true;
     }
 
-    public bool isMouseOverWhiteBox()
-    {
-        Vector2 mousePosition = Input.mousePosition;
-        
-        if (mousePosition.x >= 0 && mousePosition.x < 220
-           && mousePosition.y >= 0 && mousePosition.y < 480)
-        {
-            return true;
-        }
-        return false;
-    }
 
     public void OpenProfile()
     {
@@ -138,6 +127,71 @@ public class MenuScript : MonoBehaviour
     public void NewProjectButton()
     {
         Debug.Log("New Project button clicked");
+        SceneLoader.LoadSceneByIndex(1);
+        var generatePreviewImages = true;
+        AGFilePicker.PickVideo(videoFile =>
+        {
+            var msg = "Video file was picked: " + videoFile;
+            string videoPath = videoFile.OriginalPath;
+            PlayerPrefs.SetString("Video Path", videoPath);
+            Debug.Log(msg);
+            AGUIMisc.ShowToast(msg);
+            image.sprite = SpriteFromTex2D(videoFile.LoadPreviewImage());
+        },
+            error => AGUIMisc.ShowToast("Cancelled picking video file: " + error), generatePreviewImages);
+    }
+
+    public void onProjectPanelClicked()
+    {
+        Debug.Log("projects panel clicked");
+        if (menuIsOpen == true)
+        {
+            //enable the animator component
+            //play the Slidein animation
+            anim.Play("SlideWhiteBoxOut");
+            menuIsOpen = false;
+        }
+    }
+
+    public void onAboutPanelClicked()
+    {
+        Debug.Log("about panel clicked");
+        if (menuIsOpen == true)
+        {
+            //enable the animator component
+            //play the Slidein animation
+            anim.Play("SlideWhiteBoxOut");
+            menuIsOpen = false;
+        }
+    }
+
+    public void onSendFeedbackPanelClicked()
+    {
+        Debug.Log("send feedback panel clicked");
+        if (menuIsOpen == true)
+        {
+            //enable the animator component
+            //play the Slidein animation
+            anim.Play("SlideWhiteBoxOut");
+            menuIsOpen = false;
+        }
+    }
+
+    public void onProfilePanelClicked()
+    {
+        Debug.Log("profile panel clicked");
+        if (menuIsOpen == true)
+        {
+            //enable the animator component
+            //play the Slidein animation
+            anim.Play("SlideWhiteBoxOut");
+            menuIsOpen = false;
+        }
+    }
+
+    static Sprite SpriteFromTex2D(Texture2D texture)
+    {
+        return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
     }
 }
 
