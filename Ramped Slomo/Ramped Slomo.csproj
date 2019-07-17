@@ -14,6 +14,7 @@
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <TargetFrameworkProfile>Unity Subset v3.5</TargetFrameworkProfile>
     <CompilerResponseFile></CompilerResponseFile>
+    <UnityProjectGenerator>VSTU</UnityProjectGenerator>
     <UnityProjectType>Game:1</UnityProjectType>
     <UnityBuildTarget>Android:13</UnityBuildTarget>
     <UnityVersion>2017.1.0f3</UnityVersion>
@@ -50,35 +51,124 @@
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="UnityEditor">
-      <HintPath>Library\UnityAssemblies\UnityEditor.dll</HintPath>
+      <HintPath>C:/Program Files/Unity/Editor/Data/Managed/UnityEditor.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine">
-      <HintPath>Library\UnityAssemblies\UnityEngine.dll</HintPath>
+      <HintPath>C:/Program Files/Unity/Editor/Data/Managed/UnityEngine.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.UI">
-      <HintPath>Library\UnityAssemblies\UnityEngine.UI.dll</HintPath>
+      <HintPath>C:/Program Files/Unity/Editor/Data/UnityExtensions/Unity/GUISystem/UnityEngine.UI.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.Networking">
-      <HintPath>Library\UnityAssemblies\UnityEngine.Networking.dll</HintPath>
+      <HintPath>C:/Program Files/Unity/Editor/Data/UnityExtensions/Unity/Networking/UnityEngine.Networking.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.TestRunner">
-      <HintPath>Library\UnityAssemblies\UnityEngine.TestRunner.dll</HintPath>
+      <HintPath>C:/Program Files/Unity/Editor/Data/UnityExtensions/Unity/TestRunner/UnityEngine.TestRunner.dll</HintPath>
     </Reference>
     <Reference Include="nunit.framework">
-      <HintPath>Library\UnityAssemblies\nunit.framework.dll</HintPath>
+      <HintPath>C:/Program Files/Unity/Editor/Data/UnityExtensions/Unity/TestRunner/net35/unity-custom/nunit.framework.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.Timeline">
-      <HintPath>Library\UnityAssemblies\UnityEngine.Timeline.dll</HintPath>
+      <HintPath>C:/Program Files/Unity/Editor/Data/UnityExtensions/Unity/Timeline/RuntimeEditor/UnityEngine.Timeline.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.Analytics">
-      <HintPath>Library\UnityAssemblies\UnityEngine.Analytics.dll</HintPath>
+      <HintPath>C:/Program Files/Unity/Editor/Data/UnityExtensions/Unity/UnityAnalytics/UnityEngine.Analytics.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.HoloLens">
-      <HintPath>Library\UnityAssemblies\UnityEngine.HoloLens.dll</HintPath>
+      <HintPath>C:/Program Files/Unity/Editor/Data/UnityExtensions/Unity/UnityHoloLens/RuntimeEditor/UnityEngine.HoloLens.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEditor.iOS.Extensions.Xcode">
+      <HintPath>C:/Program Files/Unity/Editor/Data/PlaybackEngines/iOSSupport\UnityEditor.iOS.Extensions.Xcode.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEditor.iOS.Extensions.Common">
+      <HintPath>C:/Program Files/Unity/Editor/Data/PlaybackEngines/iOSSupport\UnityEditor.iOS.Extensions.Common.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\AlarmClockTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\AlertDialogTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\CalendarTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\DateTimePickerTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\DialTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\GPSTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\NativeShareTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\OpenSettingsTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\OtherGoodiesTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\OtherInfoTest.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\UI\AndroidGoodiesDemoController.cs" />
+    <Compile Include="Assets\AndroidGoodies\Example\Scripts\UI\EnableOnClick.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGAlarmClock.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGApps.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGCalendar.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGClipboard.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGContacts.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGDialer.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGFilePicker.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGGallery.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGMaps.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGMediaRecorder.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGSettings.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\AppInteraction\AGShare.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\GetInfo\AGDeviceInfo.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\GetInfo\AGEnvironment.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\GetInfo\AGNetwork.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\GetInfo\AGTelephony.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\GetInfo\Entity\PackageInfo.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Hardware\AGBattery.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Hardware\AGCamera.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Hardware\AGFlashLight.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Hardware\AGGPS.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Hardware\AGVibrator.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Other\AGPermissions.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Other\Entity\AudioPickResult.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Other\Entity\ContactPickResult.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Other\Entity\FilePickerResult.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Other\Entity\ImagePickResult.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Other\Entity\ImageResultSize.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Other\Entity\VideoPickResult.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Other\Enum\ImageFormat.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Storage\AGFileUtils.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\Storage\AGSharedPrefs.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\UI\AGLocalNotifications.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\UI\AGUIMisc.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\UI\AGWallpaperManager.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\UI\Dialogs\AGAlertDialog.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\UI\Dialogs\AGDateTimePicker.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\UI\Dialogs\AGDialogTheme.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Goodies\UI\Dialogs\AGProgressDialog.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\CommonUtils\Check.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\CrossPlatform\CommonUtils.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\CrossPlatform\JsonUtils.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\CrossPlatform\LocationUtils.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\CrossPlatform\MiniJSON.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\GoodiesSceneHelper.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Interface\DialogOnCancelListenerPoxy.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Interface\DialogOnClickListenerProxy.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Interface\DialogOnDismissListenerProxy.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Interface\DialogOnMultiChoiceClickListenerProxy.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Interface\OnScanCompletedListener.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\ProxyAJO\AndroidIntent.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\ProxyAJO\AndroidPendingIntent.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\ProxyAJO\AndroidSettings.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\ProxyAJO\AndroidUri.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\AGActivityUtils.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\AGConvertUtils.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\AGSystemService.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\AGUtils.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\AndroidDialogUtils.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\AndroidGoodiesExtensions.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\AndroidPersistanceUtilsInternal.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\C.cs" />
+    <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\R.cs" />
     <Compile Include="Assets\Scripts\MenuScript.cs" />
+    <Compile Include="Assets\Scripts\PlaybackVideo.cs" />
+    <Compile Include="Assets\Scripts\ProjectScript.cs" />
+    <Compile Include="Assets\Scripts\SceneLoader.cs" />
+    <Compile Include="Assets\Scripts\VideoController.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Assets\AndroidGoodies\README.txt" />
+    <None Include="Assets\Plugins\Android\AndroidManifest.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />
