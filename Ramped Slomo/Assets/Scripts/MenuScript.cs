@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-using DeadMosquito.AndroidGoodies;
-
 using System;
 using System.IO;
 using System.Linq;
@@ -128,17 +126,6 @@ public class MenuScript : MonoBehaviour
     {
         Debug.Log("New Project button clicked");
         SceneLoader.LoadSceneByIndex(1);
-        var generatePreviewImages = true;
-        AGFilePicker.PickVideo(videoFile =>
-        {
-            var msg = "Video file was picked: " + videoFile;
-            string videoPath = videoFile.OriginalPath;
-            PlayerPrefs.SetString("Video Path", videoPath);
-            Debug.Log(msg);
-            AGUIMisc.ShowToast(msg);
-            image.sprite = SpriteFromTex2D(videoFile.LoadPreviewImage());
-        },
-            error => AGUIMisc.ShowToast("Cancelled picking video file: " + error), generatePreviewImages);
     }
 
     public void onProjectPanelClicked()

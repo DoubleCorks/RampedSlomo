@@ -137,10 +137,10 @@
     <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\C.cs" />
     <Compile Include="Assets\AndroidGoodies\Scripts\Internal\Utils\R.cs" />
     <Compile Include="Assets\Scripts\MenuScript.cs" />
-    <Compile Include="Assets\Scripts\PlaybackVideo.cs" />
-    <Compile Include="Assets\Scripts\ProjectScript.cs" />
+    <Compile Include="Assets\Scripts\PlaybackController.cs" />
+    <Compile Include="Assets\Scripts\ProjectManager.cs" />
     <Compile Include="Assets\Scripts\SceneLoader.cs" />
-    <Compile Include="Assets\Scripts\VideoController.cs" />
+    <Compile Include="Assets\Scripts\VideoPlayerManager.cs" />
     <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_SDF-Surface-Mobile.shader" />
     <None Include="Assets\TextMesh Pro\Resources\LineBreaking Leading Characters.txt" />
     <None Include="Assets\TextMesh Pro\Resources\Shaders\TMPro_Properties.cginc" />
@@ -160,19 +160,19 @@
     <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_Sprite.shader" />
     <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_SDF-Surface.shader" />
     <Reference Include="Unity.TextMeshPro.Editor">
-      <HintPath>C:/Users/Michael/Desktop/Unity Projects/RampedSlomo/Ramped Slomo/Library/ScriptAssemblies/Unity.TextMeshPro.Editor.dll</HintPath>
+      <HintPath>C:/Users/mrmon/Desktop/Ramped Slomo/Git Ramped Slomo Project/Ramped Slomo/Library/ScriptAssemblies/Unity.TextMeshPro.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.PackageManagerUI.Editor">
-      <HintPath>C:/Users/Michael/Desktop/Unity Projects/RampedSlomo/Ramped Slomo/Library/ScriptAssemblies/Unity.PackageManagerUI.Editor.dll</HintPath>
+      <HintPath>C:/Users/mrmon/Desktop/Ramped Slomo/Git Ramped Slomo Project/Ramped Slomo/Library/ScriptAssemblies/Unity.PackageManagerUI.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.CollabProxy.Editor">
-      <HintPath>C:/Users/Michael/Desktop/Unity Projects/RampedSlomo/Ramped Slomo/Library/ScriptAssemblies/Unity.CollabProxy.Editor.dll</HintPath>
+      <HintPath>C:/Users/mrmon/Desktop/Ramped Slomo/Git Ramped Slomo Project/Ramped Slomo/Library/ScriptAssemblies/Unity.CollabProxy.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.TextMeshPro">
-      <HintPath>C:/Users/Michael/Desktop/Unity Projects/RampedSlomo/Ramped Slomo/Library/ScriptAssemblies/Unity.TextMeshPro.dll</HintPath>
+      <HintPath>C:/Users/mrmon/Desktop/Ramped Slomo/Git Ramped Slomo Project/Ramped Slomo/Library/ScriptAssemblies/Unity.TextMeshPro.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Analytics.DataPrivacy">
-      <HintPath>C:/Users/Michael/Desktop/Unity Projects/RampedSlomo/Ramped Slomo/Library/ScriptAssemblies/Unity.Analytics.DataPrivacy.dll</HintPath>
+      <HintPath>C:/Users/mrmon/Desktop/Ramped Slomo/Git Ramped Slomo Project/Ramped Slomo/Library/ScriptAssemblies/Unity.Analytics.DataPrivacy.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.AIModule">
       <HintPath>C:/Program Files/Unity/Editor/Data/Managed/UnityEngine/UnityEngine.AIModule.dll</HintPath>
@@ -373,13 +373,13 @@
       <HintPath>C:/Program Files/Unity/Editor/Data/UnityExtensions/Unity/UnitySpatialTracking/RuntimeEditor/UnityEngine.SpatialTracking.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Analytics.Editor">
-      <HintPath>C:/Users/Michael/Desktop/Unity Projects/RampedSlomo/Ramped Slomo/Library/PackageCache/com.unity.analytics@3.2.2/Unity.Analytics.Editor.dll</HintPath>
+      <HintPath>C:/Users/mrmon/Desktop/Ramped Slomo/Git Ramped Slomo Project/Ramped Slomo/Library/PackageCache/com.unity.analytics@3.2.2/Unity.Analytics.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Analytics.StandardEvents">
-      <HintPath>C:/Users/Michael/Desktop/Unity Projects/RampedSlomo/Ramped Slomo/Library/PackageCache/com.unity.analytics@3.2.2/Unity.Analytics.StandardEvents.dll</HintPath>
+      <HintPath>C:/Users/mrmon/Desktop/Ramped Slomo/Git Ramped Slomo Project/Ramped Slomo/Library/PackageCache/com.unity.analytics@3.2.2/Unity.Analytics.StandardEvents.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Analytics.Tracker">
-      <HintPath>C:/Users/Michael/Desktop/Unity Projects/RampedSlomo/Ramped Slomo/Library/PackageCache/com.unity.analytics@3.2.2/Unity.Analytics.Tracker.dll</HintPath>
+      <HintPath>C:/Users/mrmon/Desktop/Ramped Slomo/Git Ramped Slomo Project/Ramped Slomo/Library/PackageCache/com.unity.analytics@3.2.2/Unity.Analytics.Tracker.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib">
       <HintPath>C:/Program Files/Unity/Editor/Data/MonoBleedingEdge/lib/mono/unity/mscorlib.dll</HintPath>
