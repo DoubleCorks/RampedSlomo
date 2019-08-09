@@ -1,0 +1,54 @@
+[
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\drawable-xxhdpi-v4_notify_icon_small.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\unity-android-resources\\build\\intermediates\\packaged_res\\release\\drawable-xxhdpi-v4\\notify_icon_small.png"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\mipmap-anydpi-v26_app_icon_round.xml.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\src\\main\\res\\mipmap-anydpi-v26\\app_icon_round.xml"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\xml_paths.xml.flat",
+        "source": "C:\\Users\\mrmon\\.gradle\\caches\\transforms-1\\files-1.1\\androidgoodieslib-release.aar\\9dd0f2f1fb14b763e9fa4b6cd9de7148\\res\\xml\\paths.xml"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\drawable_notify_icon_small.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\unity-android-resources\\build\\intermediates\\packaged_res\\release\\drawable\\notify_icon_small.png"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\drawable-xxxhdpi-v4_notify_icon_small.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\unity-android-resources\\build\\intermediates\\packaged_res\\release\\drawable-xxxhdpi-v4\\notify_icon_small.png"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\drawable-mdpi-v4_notify_icon_small.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\unity-android-resources\\build\\intermediates\\packaged_res\\release\\drawable-mdpi-v4\\notify_icon_small.png"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\mipmap-anydpi-v26_app_icon.xml.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\src\\main\\res\\mipmap-anydpi-v26\\app_icon.xml"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\drawable-hdpi-v4_notify_icon_small.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\unity-android-resources\\build\\intermediates\\packaged_res\\release\\drawable-hdpi-v4\\notify_icon_small.png"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\mipmap-mdpi_ic_launcher_background.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\src\\main\\res\\mipmap-mdpi\\ic_launcher_background.png"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\drawable-xhdpi-v4_notify_icon_small.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\unity-android-resources\\build\\intermediates\\packaged_res\\release\\drawable-xhdpi-v4\\notify_icon_small.png"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\drawable-xhdpi_app_banner.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\src\\main\\res\\drawable-xhdpi\\app_banner.png"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\mipmap-mdpi_app_icon.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\src\\main\\res\\mipmap-mdpi\\app_icon.png"
+    },
+    {
+        "merged": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\build\\intermediates\\res\\merged\\release\\mipmap-mdpi_ic_launcher_foreground.png.flat",
+        "source": "C:\\Users\\mrmon\\Desktop\\UnityProjects\\TestNewAssets\\Temp\\gradleOut\\src\\main\\res\\mipmap-mdpi\\ic_launcher_foreground.png"
+    }
+]

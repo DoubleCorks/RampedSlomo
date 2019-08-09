@@ -1,0 +1,31 @@
+-- Merging decision tree log ---
+manifest
+ADDED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:1:39-2:103
+INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:1:39-2:103
+INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:1:39-2:103
+INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:1:39-2:103
+INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:1:39-2:103
+INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:1:39-2:103
+INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:1:39-2:103
+	package
+		ADDED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:1:108-152
+		INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml
+		INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml
+	android:versionName
+		ADDED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:2:25-50
+		INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml
+		INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml
+	xmlns:android
+		ADDED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:1:49-107
+	android:versionCode
+		ADDED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:2:1-24
+		INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml
+		INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml
+uses-sdk
+ADDED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:2:51-92
+INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:2:51-92
+INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:2:51-92
+	android:targetSdkVersion
+		ADDED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml:2:61-90
+		INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml
+		INJECTED from C:\Users\mrmon\Desktop\UnityProjects\TestNewAssets\Temp\gradleOut\unity-android-resources\AndroidManifest.xml

@@ -1,0 +1,2 @@
+com.MASStudios.SlowSpeed.resources
+drawable notify_icon_small
