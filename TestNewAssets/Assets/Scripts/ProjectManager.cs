@@ -60,11 +60,15 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         FFmpegParser.Handler = this;
         taskQueue = new Queue<FFmpegTask>();
         FFmpegTask first = new FFmpegTask(TrimSectionOne);
-        FFmpegTask second = new FFmpegTask(SlomoSectionTwo);
+        FFmpegTask secondZero = new FFmpegTask(SlomoSectionTwoZero);
+        FFmpegTask secondOne = new FFmpegTask(SlomoSectionTwoOne);
+        FFmpegTask secondTwo = new FFmpegTask(SlomoSectionTwoTwo);
         FFmpegTask third = new FFmpegTask(TrimSectionThree);
         FFmpegTask fourth = new FFmpegTask(ConcatenateSections);
         taskQueue.Enqueue(first);
-        taskQueue.Enqueue(second);
+        taskQueue.Enqueue(secondZero);
+        taskQueue.Enqueue(secondOne);
+        taskQueue.Enqueue(secondTwo);
         taskQueue.Enqueue(third);
         taskQueue.Enqueue(fourth);
 
@@ -341,6 +345,56 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     }
 
     /// <summary>
+    /// Slomo's second section of the video
+    /// </summary>
+    private void SlomoSectionTwoZero()
+    {
+        Debug.Log("SLOMOING SECTION TWO ZERO");
+        //-ss = starting time, -t = duration
+        //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
+        float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name])/3;
+        string commands = "-ss&" + keyFrameDict[_keyFrameOne.gameObject.name] + "&-t&" + duration +
+            "&-y&-i&" + _videoPlayer.url +
+            "&-filter_complex&[0:v]setpts=1.5*PTS[v0];[0:a]atempo=.666[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" +
+            HandleDirectory("slomoSectionTwoZero.mp4");
+        FFmpegCommands.AndDirectInput(commands);
+    }
+
+    /// <summary>
+    /// Slomo's second section of the video
+    /// </summary>
+    private void SlomoSectionTwoOne()
+    {
+        Debug.Log("SLOMOING SECTION TWO ONE");
+        //-ss = starting time, -t = duration
+        //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
+        float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name]) / 3;
+        float ss = keyFrameDict[_keyFrameOne.gameObject.name] + duration;
+        string commands = "-ss&" + ss + "&-t&" + duration +
+            "&-y&-i&" + _videoPlayer.url +
+            "&-filter_complex&[0:v]setpts=2.0*PTS[v0];[0:a]atempo=.5[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" +
+            HandleDirectory("slomoSectionTwoOne.mp4");
+        FFmpegCommands.AndDirectInput(commands);
+    }
+
+    /// <summary>
+    /// Slomo's second section of the video
+    /// </summary>
+    private void SlomoSectionTwoTwo()
+    {
+        Debug.Log("SLOMOING SECTION TWO TWO");
+        //-ss = starting time, -t = duration
+        //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
+        float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name]) / 3;
+        float ss = keyFrameDict[_keyFrameOne.gameObject.name] + (2.0f*duration);
+        string commands = "-ss&" + ss + "&-t&" + duration +
+            "&-y&-i&" + _videoPlayer.url +
+            "&-filter_complex&[0:v]setpts=1.5*PTS[v0];[0:a]atempo=.666[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" +
+            HandleDirectory("slomoSectionTwoTwo.mp4");
+        FFmpegCommands.AndDirectInput(commands);
+    }
+
+    /// <summary>
     /// Trims the third section of the video after effect
     /// </summary>
     private void TrimSectionThree()
@@ -360,8 +414,14 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void ConcatenateSections()
     {
         Debug.Log("CONCATENATING SECTIONS");
-        string commands = "-y&-i&" + HandleDirectory(TRIMMED_SECTION_ONE) + "&-i&" + HandleDirectory(SLOMOD_SECTION_TWO) + "&-i&" + HandleDirectory(TRIMMED_SECTION_THREE) +
-            "&-filter_complex&[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[out]&-map&[out]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" + HandleDirectory(CONCATENATED_SECTIONS);
+        string commands = "-y&-i&" + HandleDirectory(TRIMMED_SECTION_ONE) + "&-i&" + HandleDirectory("slomoSectionTwoZero.mp4") + "&-i&" + HandleDirectory("slomoSectionTwoOne.mp4") + 
+            "&-i&" + HandleDirectory("slomoSectionTwoTwo.mp4") + "&-i&" + HandleDirectory(TRIMMED_SECTION_THREE) +
+            "&-filter_complex&[0:v]setpts=PTS-STARTPTS[v0];[0:a]asetpts=PTS-STARTPTS[a0];" +
+            "[1:v]setpts=PTS-STARTPTS[v1];[1:a]asetpts=PTS-STARTPTS[a1];" +
+            "[2:v]setpts=PTS-STARTPTS[v2];[2:a]asetpts=PTS-STARTPTS[a2];" +
+            "[3:v]setpts=PTS-STARTPTS[v3];[3:a]asetpts=PTS-STARTPTS[a3];" +
+            "[4:v]setpts=PTS-STARTPTS[v4];[4:a]asetpts=PTS-STARTPTS[a4];" +
+            "[v0][a0][v1][a1][v2][a2][v3][a3][v4][a4]concat=n=5:v=1:a=1[v][a]&-map&[v]&-map&[a]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" + HandleDirectory(CONCATENATED_SECTIONS);
         FFmpegCommands.AndDirectInput(commands);
     }
 
