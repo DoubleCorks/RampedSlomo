@@ -311,6 +311,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     /// <summary>
     /// Trims the first section of the video before effect
+    /// -c:v libx264 -preset ultrafast -crf 0 -acodec aac
     /// </summary>
     private void TrimSectionOne()
     {
@@ -319,7 +320,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //so this is: only between start-kf1, apply this trim filter;
         float duration = keyFrameDict[_keyFrameOne.gameObject.name];
         string commands = "-ss&0.0&-t&" + duration + "&-y&-i&" + 
-            _videoPlayer.url + "&" + HandleDirectory(TRIMMED_SECTION_ONE);
+            _videoPlayer.url + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" + HandleDirectory(TRIMMED_SECTION_ONE);
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -334,7 +335,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         float duration = keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name];
         string commands = "-ss&" + keyFrameDict[_keyFrameOne.gameObject.name] + "&-t&" + duration +
             "&-y&-i&" + _videoPlayer.url +
-            "&-filter_complex&[0:v]setpts=2.0*PTS[v0];[0:a]atempo=.5[a0]&-map&[v0]&-map&[a0]&" +
+            "&-filter_complex&[0:v]setpts=2.0*PTS[v0];[0:a]atempo=.5[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" +
             HandleDirectory(SLOMOD_SECTION_TWO);
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -349,7 +350,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //so this is: only between kf2-end, apply this trim filter;
         float duration = (float)_videoPlayer.length - keyFrameDict[_keyFrameTwo.gameObject.name];
         string commands = "-ss&"+keyFrameDict[_keyFrameTwo.gameObject.name]+"&-t&" + duration + "&-y&-i&" +
-            _videoPlayer.url + "&" + HandleDirectory(TRIMMED_SECTION_THREE);
+            _videoPlayer.url + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" + HandleDirectory(TRIMMED_SECTION_THREE);
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -360,7 +361,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     {
         Debug.Log("CONCATENATING SECTIONS");
         string commands = "-y&-i&" + HandleDirectory(TRIMMED_SECTION_ONE) + "&-i&" + HandleDirectory(SLOMOD_SECTION_TWO) + "&-i&" + HandleDirectory(TRIMMED_SECTION_THREE) +
-            "&-filter_complex&[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[out]&-map&[out]&" + HandleDirectory(CONCATENATED_SECTIONS);
+            "&-filter_complex&[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[out]&-map&[out]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" + HandleDirectory(CONCATENATED_SECTIONS);
         FFmpegCommands.AndDirectInput(commands);
     }
 
