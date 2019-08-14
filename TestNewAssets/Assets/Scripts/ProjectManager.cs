@@ -7,6 +7,8 @@ using UnityEngine.EventSystems;
 using FFmpeg;
 using DeadMosquito.AndroidGoodies;
 using DeadMosquito.AndroidGoodies.Internal;
+using System.IO;
+using UnityEditor;
 #if PLATFORM_ANDROID
 using UnityEngine.Android;
 #endif
@@ -14,9 +16,9 @@ using UnityEngine.Android;
 public class ProjectManager : MonoBehaviour, IFFmpegHandler
 {
     public const string TEST_NEW_ASSETS_MOVIES_DIRECTORY = "TestNewAssets Edited";
-    public const string TRIMMED_SECTION_ONE = "trimmedSectionOne.mp4";
-    public const string SLOMOD_SECTION_TWO = "slomodSectionTwo.mp4";
-    public const string TRIMMED_SECTION_THREE= "trimmedSectionThree.mp4";
+    public const string TRIMMED_SECTION_ONE = "trimmedSectionOne.mov";
+    public const string SLOMOD_SECTION_TWO = "slomodSectionTwo.mov";
+    public const string TRIMMED_SECTION_THREE= "trimmedSectionThree.mov";
     public const string CONCATENATED_SECTIONS = "concatenatedSections.mp4";
 
     //media player
@@ -71,6 +73,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         taskQueue.Enqueue(secondTwo);
         taskQueue.Enqueue(third);
         taskQueue.Enqueue(fourth);
+        ClearAllTxt();
 
         //keyframes
         _keyFrameOne.gameObject.SetActive(false);
@@ -320,11 +323,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void TrimSectionOne()
     {
         Debug.Log("TRIMMING SECTION ONE");
+        WriteStringToTxtFile(HandleDirectory(TRIMMED_SECTION_ONE));
         //-ss = starting time, -t = duration
         //so this is: only between start-kf1, apply this trim filter;
         float duration = keyFrameDict[_keyFrameOne.gameObject.name];
         string commands = "-ss&0.0&-t&" + duration + "&-y&-i&" + 
-            _videoPlayer.url + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" + HandleDirectory(TRIMMED_SECTION_ONE);
+            _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0];[0:a]aresample=44100[a0]&-map&[v0]&-map&[a0]"
+            + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" + HandleDirectory(TRIMMED_SECTION_ONE);
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -339,7 +344,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         float duration = keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name];
         string commands = "-ss&" + keyFrameDict[_keyFrameOne.gameObject.name] + "&-t&" + duration +
             "&-y&-i&" + _videoPlayer.url +
-            "&-filter_complex&[0:v]setpts=2.0*PTS[v0];[0:a]atempo=.5[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" +
+            "&-filter_complex&[0:v]setpts=2.0*PTS[v0];[0:a]atempo=.5[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
             HandleDirectory(SLOMOD_SECTION_TWO);
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -350,13 +355,17 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void SlomoSectionTwoZero()
     {
         Debug.Log("SLOMOING SECTION TWO ZERO");
+        WriteStringToTxtFile(HandleDirectory("slomoSectionTwoZero.mov"));
         //-ss = starting time, -t = duration
-        //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
+        //so this is: only between kf1-kf2, apply this slomo filter, useful for orking on only the part that we want slomo'd
         float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name])/3;
+        float slowMult = 1.5f;
+        float audioMult = CalculateAudioMult(slowMult);
         string commands = "-ss&" + keyFrameDict[_keyFrameOne.gameObject.name] + "&-t&" + duration +
             "&-y&-i&" + _videoPlayer.url +
-            "&-filter_complex&[0:v]setpts=1.5*PTS[v0];[0:a]atempo=.666[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" +
-            HandleDirectory("slomoSectionTwoZero.mp4");
+            "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
+            "&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
+            HandleDirectory("slomoSectionTwoZero.mov");
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -366,14 +375,18 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void SlomoSectionTwoOne()
     {
         Debug.Log("SLOMOING SECTION TWO ONE");
+        WriteStringToTxtFile(HandleDirectory("slomoSectionTwoOne.mov"));
         //-ss = starting time, -t = duration
         //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
         float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name]) / 3;
+        float slowMult = 2.0f;
+        float audioMult = CalculateAudioMult(slowMult);
         float ss = keyFrameDict[_keyFrameOne.gameObject.name] + duration;
         string commands = "-ss&" + ss + "&-t&" + duration +
             "&-y&-i&" + _videoPlayer.url +
-            "&-filter_complex&[0:v]setpts=2.0*PTS[v0];[0:a]atempo=.5[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" +
-            HandleDirectory("slomoSectionTwoOne.mp4");
+            "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
+            "&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
+            HandleDirectory("slomoSectionTwoOne.mov");
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -383,14 +396,18 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void SlomoSectionTwoTwo()
     {
         Debug.Log("SLOMOING SECTION TWO TWO");
+        WriteStringToTxtFile(HandleDirectory("slomoSectionTwoTwo.mov"));
         //-ss = starting time, -t = duration
         //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
         float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name]) / 3;
+        float slowMult = 1.5f;
+        float audioMult = CalculateAudioMult(slowMult);
         float ss = keyFrameDict[_keyFrameOne.gameObject.name] + (2.0f*duration);
         string commands = "-ss&" + ss + "&-t&" + duration +
             "&-y&-i&" + _videoPlayer.url +
-            "&-filter_complex&[0:v]setpts=1.5*PTS[v0];[0:a]atempo=.666[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" +
-            HandleDirectory("slomoSectionTwoTwo.mp4");
+            "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
+            "&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
+            HandleDirectory("slomoSectionTwoTwo.mov");
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -400,11 +417,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void TrimSectionThree()
     {
         Debug.Log("TRIMMING SECTION Three");
+        WriteStringToTxtFile(HandleDirectory(TRIMMED_SECTION_THREE));
         //-ss = starting time, -t = duration
         //so this is: only between kf2-end, apply this trim filter;
         float duration = (float)_videoPlayer.length - keyFrameDict[_keyFrameTwo.gameObject.name];
         string commands = "-ss&"+keyFrameDict[_keyFrameTwo.gameObject.name]+"&-t&" + duration + "&-y&-i&" +
-            _videoPlayer.url + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" + HandleDirectory(TRIMMED_SECTION_THREE);
+            _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0];[0:a]aresample=44100[a0]&-map&[v0]&-map&[a0]"
+            + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" + HandleDirectory(TRIMMED_SECTION_THREE);
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -414,15 +433,51 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void ConcatenateSections()
     {
         Debug.Log("CONCATENATING SECTIONS");
-        string commands = "-y&-i&" + HandleDirectory(TRIMMED_SECTION_ONE) + "&-i&" + HandleDirectory("slomoSectionTwoZero.mp4") + "&-i&" + HandleDirectory("slomoSectionTwoOne.mp4") + 
-            "&-i&" + HandleDirectory("slomoSectionTwoTwo.mp4") + "&-i&" + HandleDirectory(TRIMMED_SECTION_THREE) +
-            "&-filter_complex&[0:v]setpts=PTS-STARTPTS[v0];[0:a]asetpts=PTS-STARTPTS[a0];" +
-            "[1:v]setpts=PTS-STARTPTS[v1];[1:a]asetpts=PTS-STARTPTS[a1];" +
-            "[2:v]setpts=PTS-STARTPTS[v2];[2:a]asetpts=PTS-STARTPTS[a2];" +
-            "[3:v]setpts=PTS-STARTPTS[v3];[3:a]asetpts=PTS-STARTPTS[a3];" +
-            "[4:v]setpts=PTS-STARTPTS[v4];[4:a]asetpts=PTS-STARTPTS[a4];" +
-            "[v0][a0][v1][a1][v2][a2][v3][a3][v4][a4]concat=n=5:v=1:a=1[v][a]&-map&[v]&-map&[a]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&aac&" + HandleDirectory(CONCATENATED_SECTIONS);
+        /*
+        string commands = "-y&-i&" + HandleDirectory(TRIMMED_SECTION_ONE) + "&-i&" + HandleDirectory("slomoSectionTwoZero.mov") + "&-i&" + HandleDirectory("slomoSectionTwoOne.mov") + 
+            "&-i&" + HandleDirectory("slomoSectionTwoTwo.mov") + "&-i&" + HandleDirectory(TRIMMED_SECTION_THREE) +
+            "&-filter_complex&[0:a][1:a]acrossfade=d=0.5;[1:a][2:a]acrossfade=d=0.5;[2:a][3:a]acrossfade=d=0.5;[3:a][4:a]acrossfade=d=0.5;" +
+            "[0:v][0:a][1:v][1:a][2:v][2:a][3:v][3:a][4:v][4:a]" +
+            "concat=n=5:v=1:a=1[v][a]&-map&[v]&-map&[a]&" + HandleDirectory(CONCATENATED_SECTIONS);
+        */
+        string vidFilePath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, "vidFiles.txt");
+        Debug.Log(File.ReadAllText(vidFilePath));
+        /*string commands2 = "-y&-i&" + vidFilePath + "&-filter_complex&concat=n=5:v=1:a=1[v][a]&" +
+            "-map&[v]&-map&[a]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" + HandleDirectory("concatMuxer.mp4");
+        */
+        string commands = "-f&concat&-safe&0&-y&-i&"+ vidFilePath + "&-c:v&copy&" + HandleDirectory("concatMuxer.mp4");
+
         FFmpegCommands.AndDirectInput(commands);
+    }
+
+    private void WriteStringToTxtFile(string s)
+    {
+        string vidFilePath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, "vidFiles.txt");
+        //Write s to the test.txt file
+        StreamWriter writer = new StreamWriter(vidFilePath, true);
+        writer.WriteLine("file " + "'"+ s + "'");
+        writer.Close();
+    }
+
+    private void ClearAllTxt()
+    {
+        string vidFilePath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, "vidFiles.txt");
+
+        //Clear file but replacing (false), not appending (true)
+        StreamWriter writer = new StreamWriter(vidFilePath, false);
+        writer.WriteLine(string.Empty);
+        writer.Close();
+    }
+
+    /// <summary>
+    /// can guarentee slowmult will be greater than or equal to 1.0
+    /// </summary>
+    /// <param name="duration"></param>
+    /// <param name="slowMult"></param>
+    /// <returns></returns>
+    private float CalculateAudioMult(float slowMult)
+    {
+        return (1/slowMult);
     }
 
     #endregion
