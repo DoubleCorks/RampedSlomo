@@ -16,8 +16,8 @@ using UnityEngine.Android;
 public class ProjectManager : MonoBehaviour, IFFmpegHandler
 {
     public const string TEST_NEW_ASSETS_MOVIES_DIRECTORY = "TestNewAssets Edited";
+    public const string VID_FILES_TXT = "vidFiles.txt";
     public const string TRIMMED_SECTION_ONE = "trimmedSectionOne.mov";
-    public const string SLOMOD_SECTION_TWO = "slomodSectionTwo.mov";
     public const string TRIMMED_SECTION_THREE= "trimmedSectionThree.mov";
     public const string CONCATENATED_SECTIONS = "concatenatedSections.mp4";
 
@@ -39,6 +39,9 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     //FFmpegHandler defaultHandler = new FFmpegHandler();
 
     private bool canSlide;
+    private HashSet<string> filesToRemove;
+    private string vidDirectoryPath;
+    private string vidListFilePath;
 
     /// <summary>
     /// maps keyFrameName to time value (in seconds) where it lies on timeline. i.e keyframe1:1.4s
@@ -58,29 +61,16 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         canSlide = false;
         _doButton.SetActive(false);
 
-        //ffmpeg
-        FFmpegParser.Handler = this;
-        taskQueue = new Queue<FFmpegTask>();
-        FFmpegTask first = new FFmpegTask(TrimSectionOne);
-        FFmpegTask secondZero = new FFmpegTask(SlomoSectionTwoZero);
-        FFmpegTask secondOne = new FFmpegTask(SlomoSectionTwoOne);
-        FFmpegTask secondTwo = new FFmpegTask(SlomoSectionTwoTwo);
-        FFmpegTask third = new FFmpegTask(TrimSectionThree);
-        FFmpegTask fourth = new FFmpegTask(ConcatenateSections);
-        taskQueue.Enqueue(first);
-        taskQueue.Enqueue(secondZero);
-        taskQueue.Enqueue(secondOne);
-        taskQueue.Enqueue(secondTwo);
-        taskQueue.Enqueue(third);
-        taskQueue.Enqueue(fourth);
-        ClearAllTxt();
-
         //keyframes
         _keyFrameOne.gameObject.SetActive(false);
         _keyFrameTwo.gameObject.SetActive(false);
 
         //vid player callbacks
         _videoPlayer.prepareCompleted += VideoPrepareCompleted;
+
+        //folder and file paths
+        vidDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, TEST_NEW_ASSETS_MOVIES_DIRECTORY);
+        vidListFilePath = System.IO.Path.Combine(vidDirectoryPath, VID_FILES_TXT);
     }
 
     // Update is called once per frame
@@ -153,7 +143,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     public void OnDoFFMpegCommandClick()
     {
-        Debug.Log("applying filters");
+        //Debug.Log("applying filters taskQueue.Count= ");
         taskQueue.Dequeue()();
     }
 
@@ -171,7 +161,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             string videoPath = videoFile.OriginalPath;
             _videoPlayer.url = videoPath;
             _videoPlayer.Prepare();
-            _doButton.SetActive(true);
             AGUIMisc.ShowToast(msg);
         },
             error => AGUIMisc.ShowToast("Cancelled picking video file: " + error), generatePreviewImages);
@@ -239,7 +228,17 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         }
         else
         {
-            Debug.Log("queue is empty");
+            Debug.Log("queue is empty, removing uneeded files");
+            foreach(string s in filesToRemove)
+            {
+                Debug.Log("removing file:" + s);
+                if (File.Exists(s))
+                {
+                    File.Delete(s);
+                    Debug.Log("File:" + s + " deleted");
+                }
+
+            }
         }      
     }
 
@@ -267,6 +266,20 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _keyFrameTwo.value = .75f;
         AddSliderFrameTimeToKFDict(_keyFrameOne, CalcVidTimeFromSliderFrame(_keyFrameOne));
         AddSliderFrameTimeToKFDict(_keyFrameTwo, CalcVidTimeFromSliderFrame(_keyFrameTwo));
+
+        //ffmpeg
+        ClearAllTxt();
+        filesToRemove = new HashSet<string>();
+        FFmpegParser.Handler = this;
+        taskQueue = new Queue<FFmpegTask>();
+        FFmpegTask firstTrim = new FFmpegTask(TrimSectionOne);
+        FFmpegTask lastTrim = new FFmpegTask(TrimSectionThree);
+        FFmpegTask concat = new FFmpegTask(ConcatenateSections);
+        taskQueue.Enqueue(firstTrim);
+        AddSlowMoCommandsToQueue(15, 4.0f); //num segs needs to be odd
+        taskQueue.Enqueue(lastTrim);
+        taskQueue.Enqueue(concat);
+        _doButton.SetActive(true);
     }
 
     /// <summary>
@@ -276,12 +289,11 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// <returns></returns>
     private string HandleDirectory(string fileName)
     {
-        string saveVideoDirectory = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, TEST_NEW_ASSETS_MOVIES_DIRECTORY);
-        if (!System.IO.Directory.Exists(saveVideoDirectory))
+        if (!System.IO.Directory.Exists(vidDirectoryPath))
         {
-            System.IO.Directory.CreateDirectory(saveVideoDirectory);
+            System.IO.Directory.CreateDirectory(vidDirectoryPath);
         }
-        string result = System.IO.Path.Combine(saveVideoDirectory, fileName); //have something more sophisticated here
+        string result = System.IO.Path.Combine(vidDirectoryPath, fileName); //have something more sophisticated here
         return result;
     }
 
@@ -333,83 +345,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         FFmpegCommands.AndDirectInput(commands);
     }
 
-    /// <summary>
-    /// Slomo's second section of the video
-    /// </summary>
-    private void SlomoSectionTwo()
-    {
-        Debug.Log("SLOMOING SECTION TWO");
-        //-ss = starting time, -t = duration
-        //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
-        float duration = keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name];
-        string commands = "-ss&" + keyFrameDict[_keyFrameOne.gameObject.name] + "&-t&" + duration +
-            "&-y&-i&" + _videoPlayer.url +
-            "&-filter_complex&[0:v]setpts=2.0*PTS[v0];[0:a]atempo=.5[a0]&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
-            HandleDirectory(SLOMOD_SECTION_TWO);
-        FFmpegCommands.AndDirectInput(commands);
-    }
-
-    /// <summary>
-    /// Slomo's second section of the video
-    /// </summary>
-    private void SlomoSectionTwoZero()
-    {
-        Debug.Log("SLOMOING SECTION TWO ZERO");
-        WriteStringToTxtFile(HandleDirectory("slomoSectionTwoZero.mov"));
-        //-ss = starting time, -t = duration
-        //so this is: only between kf1-kf2, apply this slomo filter, useful for orking on only the part that we want slomo'd
-        float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name])/3;
-        float slowMult = 1.5f;
-        float audioMult = CalculateAudioMult(slowMult);
-        string commands = "-ss&" + keyFrameDict[_keyFrameOne.gameObject.name] + "&-t&" + duration +
-            "&-y&-i&" + _videoPlayer.url +
-            "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
-            "&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
-            HandleDirectory("slomoSectionTwoZero.mov");
-        FFmpegCommands.AndDirectInput(commands);
-    }
-
-    /// <summary>
-    /// Slomo's second section of the video
-    /// </summary>
-    private void SlomoSectionTwoOne()
-    {
-        Debug.Log("SLOMOING SECTION TWO ONE");
-        WriteStringToTxtFile(HandleDirectory("slomoSectionTwoOne.mov"));
-        //-ss = starting time, -t = duration
-        //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
-        float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name]) / 3;
-        float slowMult = 2.0f;
-        float audioMult = CalculateAudioMult(slowMult);
-        float ss = keyFrameDict[_keyFrameOne.gameObject.name] + duration;
-        string commands = "-ss&" + ss + "&-t&" + duration +
-            "&-y&-i&" + _videoPlayer.url +
-            "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
-            "&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
-            HandleDirectory("slomoSectionTwoOne.mov");
-        FFmpegCommands.AndDirectInput(commands);
-    }
-
-    /// <summary>
-    /// Slomo's second section of the video
-    /// </summary>
-    private void SlomoSectionTwoTwo()
-    {
-        Debug.Log("SLOMOING SECTION TWO TWO");
-        WriteStringToTxtFile(HandleDirectory("slomoSectionTwoTwo.mov"));
-        //-ss = starting time, -t = duration
-        //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
-        float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name]) / 3;
-        float slowMult = 1.5f;
-        float audioMult = CalculateAudioMult(slowMult);
-        float ss = keyFrameDict[_keyFrameOne.gameObject.name] + (2.0f*duration);
-        string commands = "-ss&" + ss + "&-t&" + duration +
-            "&-y&-i&" + _videoPlayer.url +
-            "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
-            "&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
-            HandleDirectory("slomoSectionTwoTwo.mov");
-        FFmpegCommands.AndDirectInput(commands);
-    }
 
     /// <summary>
     /// Trims the third section of the video after effect
@@ -433,38 +368,28 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void ConcatenateSections()
     {
         Debug.Log("CONCATENATING SECTIONS");
-        /*
-        string commands = "-y&-i&" + HandleDirectory(TRIMMED_SECTION_ONE) + "&-i&" + HandleDirectory("slomoSectionTwoZero.mov") + "&-i&" + HandleDirectory("slomoSectionTwoOne.mov") + 
-            "&-i&" + HandleDirectory("slomoSectionTwoTwo.mov") + "&-i&" + HandleDirectory(TRIMMED_SECTION_THREE) +
-            "&-filter_complex&[0:a][1:a]acrossfade=d=0.5;[1:a][2:a]acrossfade=d=0.5;[2:a][3:a]acrossfade=d=0.5;[3:a][4:a]acrossfade=d=0.5;" +
-            "[0:v][0:a][1:v][1:a][2:v][2:a][3:v][3:a][4:v][4:a]" +
-            "concat=n=5:v=1:a=1[v][a]&-map&[v]&-map&[a]&" + HandleDirectory(CONCATENATED_SECTIONS);
-        */
-        string vidFilePath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, "vidFiles.txt");
-        Debug.Log(File.ReadAllText(vidFilePath));
-        /*string commands2 = "-y&-i&" + vidFilePath + "&-filter_complex&concat=n=5:v=1:a=1[v][a]&" +
-            "-map&[v]&-map&[a]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" + HandleDirectory("concatMuxer.mp4");
-        */
-        string commands = "-f&concat&-safe&0&-y&-i&"+ vidFilePath + "&-c:v&copy&" + HandleDirectory("concatMuxer.mp4");
-
+        Debug.Log(File.ReadAllText(vidListFilePath));
+        string commands = "-f&concat&-safe&0&-y&-i&"+ vidListFilePath + "&-c:v&copy&" + HandleDirectory("concatMuxer.mp4");
         FFmpegCommands.AndDirectInput(commands);
     }
 
     private void WriteStringToTxtFile(string s)
     {
-        string vidFilePath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, "vidFiles.txt");
+        filesToRemove.Add(s);
         //Write s to the test.txt file
-        StreamWriter writer = new StreamWriter(vidFilePath, true);
+        StreamWriter writer = new StreamWriter(vidListFilePath, true);
         writer.WriteLine("file " + "'"+ s + "'");
         writer.Close();
     }
 
     private void ClearAllTxt()
     {
-        string vidFilePath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, "vidFiles.txt");
-
-        //Clear file but replacing (false), not appending (true)
-        StreamWriter writer = new StreamWriter(vidFilePath, false);
+        if(!Directory.Exists(Path.GetDirectoryName(vidDirectoryPath)))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(vidDirectoryPath));
+        }
+        //Clear file but replacing (false), appending (true)
+        StreamWriter writer = new StreamWriter(vidListFilePath, false);
         writer.WriteLine(string.Empty);
         writer.Close();
     }
@@ -478,6 +403,63 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private float CalculateAudioMult(float slowMult)
     {
         return (1/slowMult);
+    }
+
+    /// <summary>
+    /// Enqueues all slomo commands between time segments
+    /// </summary>
+    /// <param name="numSegments"></param>
+    private void AddSlowMoCommandsToQueue(int numSegments, float slow_mult_desired)
+    {
+        int halfNumSeg = numSegments / 2;
+        float inc = (slow_mult_desired-1.0f)/(halfNumSeg + 1f);
+        Debug.Log("AddSlomoCommandsToQueue " + numSegments + " half" + halfNumSeg + " inc" + inc);
+        for (int i = 1; i < numSegments+1; i++)
+        {
+            float slowMult = 1.0f; //normal speed default
+            Debug.Log("inc:" + inc + " i:" + i + " halfnumSeg:" + halfNumSeg);
+            if (i < halfNumSeg+1)
+            {
+                slowMult = (inc * i) + 1;
+                Debug.Log("inc:" + inc + " i:" + i + " slowMult:" + slowMult);
+            }
+            else if(i == halfNumSeg+1)
+            {
+                slowMult = slow_mult_desired;
+                Debug.Log("inc:" + inc + " i:" + i + " slowMult:" + slowMult);
+            }
+            else
+            {
+                slowMult = slow_mult_desired - (i%(halfNumSeg+1))*inc;
+                Debug.Log("inc:" + inc + " i:" + i + " slowMult:" + slowMult);
+            }
+            int enqueueIdx = i;
+            string fileName = HandleDirectory("slomoSection" + enqueueIdx + ".mov");
+            taskQueue.Enqueue(() => NewSlomoSection(enqueueIdx, numSegments, slowMult, fileName));
+        }
+    }
+
+    /// <summary>
+    /// Sets up and executes a slomo command at a specific interval
+    /// </summary>
+    /// <param name="numSegments"></param>
+    /// <param name="index"></param>
+    /// <param name="fileName"></param>
+    private void NewSlomoSection(int index, int numSegments, float slowMult, string fileName)
+    {
+        Debug.Log("NewSlomoSection with params:" + index + ":" + numSegments + ":" + slowMult + ":" + fileName);
+        WriteStringToTxtFile(fileName);
+        //-ss = starting time, -t = duration
+        //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
+        float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name]) / numSegments;
+        float audioMult = CalculateAudioMult(slowMult);
+        float ss = keyFrameDict[_keyFrameOne.gameObject.name] + ((index-1) * duration);
+        string commands = "-ss&" + ss + "&-t&" + duration +
+            "&-y&-i&" + _videoPlayer.url +
+            "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
+            "&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
+            HandleDirectory(fileName);
+        FFmpegCommands.AndDirectInput(commands);
     }
 
     #endregion
