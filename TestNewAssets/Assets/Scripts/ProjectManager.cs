@@ -15,7 +15,7 @@ using UnityEngine.Android;
 
 public class ProjectManager : MonoBehaviour, IFFmpegHandler
 {
-    public const string TEST_NEW_ASSETS_MOVIES_DIRECTORY = "TestNewAssets Edited";
+    public const string TEST_NEW_ASSETS_MOVIES_DIRECTORY = "TestNewAssetsEdited";
     public const string VID_FILES_TXT = "vidFiles.txt";
     public const string TRIMMED_SECTION_ONE = "trimmedSectionOne.mov";
     public const string TRIMMED_SECTION_THREE= "trimmedSectionThree.mov";
@@ -23,7 +23,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     //media player
     [SerializeField] private VideoPlayer _videoPlayer;
-    [SerializeField] private GameObject _videoWindow;
 
     //ui elements
     [SerializeField] private GameObject _playButton;
@@ -33,8 +32,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     [SerializeField] private Slider _keyFrameOne;
     [SerializeField] private Slider _keyFrameTwo;
     [SerializeField] private RawImage _thumbnail;
-    [SerializeField] private FFmpeg.Demo.ProgressView _progress;
-    [SerializeField] private FfmpegConsole _ffmpegConsole;
 
     //FFmpegHandler defaultHandler = new FFmpegHandler();
 
@@ -124,7 +121,11 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnPlayButtonClick()
     {
         Debug.Log("OnPlayButtonClick");
-        if(_videoPlayer.isPrepared)
+        if (_thumbnail.gameObject.activeInHierarchy)
+        {
+            _thumbnail.gameObject.SetActive(false);
+        }
+        if (_videoPlayer.isPrepared)
         {
             _playButton.SetActive(false);
             _pauseButton.SetActive(true);
@@ -153,6 +154,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //keyframes - dont try and change keyframe vals while no vid is there
         _keyFrameOne.gameObject.SetActive(false);
         _keyFrameTwo.gameObject.SetActive(false);
+        _thumbnail.gameObject.SetActive(true);
 
         var generatePreviewImages = true;
         AGFilePicker.PickVideo(videoFile =>
@@ -187,42 +189,32 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// </summary>
     public void OnStart()
     {
-        //defaultHandler.OnStart();
-        _progress.OnStart();
-        _ffmpegConsole.Print("started video conversion");
+        Debug.Log("OnStart");
     }
 
     //progress bar here (parse msg)
     public void OnProgress(string msg)
     {
-        //defaultHandler.OnProgress(msg);
-        _progress.OnProgress(msg);
-        _ffmpegConsole.Print(msg);
+        Debug.Log("OnProgress");
     }
 
     //Notify user about failure here
     public void OnFailure(string msg)
     {
-        //defaultHandler.OnFailure(msg);
-        _progress.OnFailure(msg);
-        _ffmpegConsole.Print(msg);
+        Debug.Log("OnFailure");
     }
 
     //Notify user about success here
     public void OnSuccess(string msg)
     {
-        //defaultHandler.OnSuccess(msg);
-        _progress.OnSuccess(msg);
-        _ffmpegConsole.Print(msg);
+        Debug.Log("OnSuccess");
     }
 
     //Last callback - do whatever you need next
     public void OnFinish()
     {
-        //defaultHandler.OnFinish();
-        _progress.OnFinish();
-        
-        if(taskQueue.Count > 0)
+        Debug.Log("OnFinish");
+        if (taskQueue.Count > 0)
         {
             taskQueue.Dequeue()();
         }
@@ -289,10 +281,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// <returns></returns>
     private string HandleDirectory(string fileName)
     {
-        if (!System.IO.Directory.Exists(vidDirectoryPath))
-        {
-            System.IO.Directory.CreateDirectory(vidDirectoryPath);
-        }
+        Directory.CreateDirectory(vidDirectoryPath);
         string result = System.IO.Path.Combine(vidDirectoryPath, fileName); //have something more sophisticated here
         return result;
     }
@@ -384,10 +373,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     private void ClearAllTxt()
     {
-        if(!Directory.Exists(Path.GetDirectoryName(vidDirectoryPath)))
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(vidDirectoryPath));
-        }
+        Directory.CreateDirectory(vidDirectoryPath);
         //Clear file but replacing (false), appending (true)
         StreamWriter writer = new StreamWriter(vidListFilePath, false);
         writer.WriteLine(string.Empty);
