@@ -43,7 +43,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private delegate void FFmpegTask();
     private Queue<FFmpegTask> taskQueue;
 
-    public static int NumSegments = 15;
+    public static int NumSegments = 21;
 
     #region Monobehaviors
 

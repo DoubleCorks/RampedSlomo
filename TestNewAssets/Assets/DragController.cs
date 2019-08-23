@@ -2,7 +2,7 @@
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class KeyFrameDragController : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+public class DragController : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     public System.Action<Vector2> OnButtonDragged = null;
 

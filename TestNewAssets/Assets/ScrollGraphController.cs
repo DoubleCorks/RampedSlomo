@@ -7,6 +7,7 @@ public class ScrollGraphController : MonoBehaviour
     //i only support two keyframes... sorry
     [SerializeField] private GameObject _kf0;
     [SerializeField] private GameObject _kf1;
+    [SerializeField] private GameObject _curveController;
 
     public GameObject GetKeyFrameZero()
     {
@@ -16,5 +17,10 @@ public class ScrollGraphController : MonoBehaviour
     public GameObject GetKeyFrameOne()
     {
         return _kf1;
+    }
+
+    public GameObject GetCurveController()
+    {
+        return _curveController;
     }
 }
