@@ -9,6 +9,8 @@ using DeadMosquito.AndroidGoodies;
 using DeadMosquito.AndroidGoodies.Internal;
 using System.IO;
 using UnityEditor;
+using System.Reflection;
+using System;
 #if PLATFORM_ANDROID
 using UnityEngine.Android;
 #endif
@@ -33,19 +35,15 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     [SerializeField] private Slider _keyFrameTwo;
     [SerializeField] private RawImage _thumbnail;
 
-    //FFmpegHandler defaultHandler = new FFmpegHandler();
-
     private bool canSlide;
     private HashSet<string> filesToRemove;
     private string vidDirectoryPath;
     private string vidListFilePath;
-
-    /// <summary>
-    /// maps keyFrameName to time value (in seconds) where it lies on timeline. i.e keyframe1:1.4s
-    /// </summary>
-    private Dictionary<string, float> keyFrameDict;
+    private Dictionary<string, float> keyFrameDict; //maps keyFrameName to time value (in seconds) where it lies on timeline. i.e keyframe1:1.4s
     private delegate void FFmpegTask();
     private Queue<FFmpegTask> taskQueue;
+
+    public static int NumSegments = 15;
 
     #region Monobehaviors
 
@@ -180,6 +178,22 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         return (float)_videoPlayer.length;
     }
 
+    // TODO: MOVE THIS TO A COMMON CLASS AND MAKE IT public static   
+    public static void DebugLog(string message)
+    {
+        try
+        {
+            MethodBase caller = new System.Diagnostics.StackFrame(1).GetMethod();
+            long unixTime = ((DateTimeOffset)DateTime.Now).ToUnixTimeSeconds();
+            UnityEngine.Debug.Log("_" + caller.DeclaringType + "." + caller.Name + "@" + unixTime + ": " + message);
+        }
+        catch (Exception e)
+        {
+            Debug.Log("DebugLog e=" + e.ToString() + " message=" + message);
+        }
+    }
+
+
     #endregion
 
     #region FFMPEG callbacks
@@ -268,7 +282,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         FFmpegTask lastTrim = new FFmpegTask(TrimSectionThree);
         FFmpegTask concat = new FFmpegTask(ConcatenateSections);
         taskQueue.Enqueue(firstTrim);
-        AddSlowMoCommandsToQueue(15, 4.0f); //num segs needs to be odd
+        AddSlowMoCommandsToQueue(NumSegments, 4.0f); //num segs needs to be odd
         taskQueue.Enqueue(lastTrim);
         taskQueue.Enqueue(concat);
         _doButton.SetActive(true);

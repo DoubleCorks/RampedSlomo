@@ -142,13 +142,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _fakeInitialVidTime: 2
-  _theCanvas: {fileID: 1672687089}
-  _scrollGraphView: {fileID: 1025461180}
+  _scrollGraphView: {fileID: 1025461178}
   _scrollGraphContent: {fileID: 907524226}
   _scrollGraphPrefab: {fileID: 8670511150024097077, guid: 68605a1556404de4dbd4956a2000989a,
     type: 3}
   _timeStampPrefab: {fileID: 4920246602231710187, guid: 3a0399099304eeb45a86ff17cd81d1b4,
     type: 3}
+  _guidesObj: {fileID: 1456250582}
 --- !u!4 &129076526
 Transform:
   m_ObjectHideFlags: 0
@@ -198,7 +198,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -141, y: -94}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1, y: 1}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!120 &197499252
@@ -421,7 +421,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -141, y: -94}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1, y: 1}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!120 &398795781
@@ -1007,7 +1007,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 283, y: 230}
+  m_SizeDelta: {x: 1, y: 1}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1456250584
 MonoBehaviour:
@@ -1021,9 +1021,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d7541c3b65864445af9fcd42bae2bb5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _mainZeroGuideRenderer: {fileID: 398795781}
-  _mainOneGuideRenderer: {fileID: 197499252}
-  _helperHalfGuideRenderer: {fileID: 1588992018}
 --- !u!1 &1458799131
 GameObject:
   m_ObjectHideFlags: 0
@@ -1349,7 +1346,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -141, y: -94}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1, y: 1}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!120 &1588992018
