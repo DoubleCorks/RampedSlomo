@@ -18,8 +18,8 @@ public class GuidesController : MonoBehaviour
         theLineRenderer.SetPosition(0, new Vector3(-1.0f*(canvasWidth/2), yVal, -1f));
         theLineRenderer.SetPosition(1, new Vector3((canvasWidth/2), yVal, -1f));
         theLineRenderer.startWidth = lineWidth;
-        theLineRenderer.gameObject.GetComponentInChildren<Text>().gameObject.GetComponent<RectTransform>().localPosition = new Vector3(-1.0f*(canvasWidth/2), yVal+10, -1f);
-        theLineRenderer.gameObject.GetComponentInChildren<Text>().text = "\t\t" + theTxt;
+        theLineRenderer.gameObject.GetComponentInChildren<Text>().gameObject.GetComponent<RectTransform>().localPosition = new Vector3(-1.0f*(canvasWidth/2), yVal+50, -1f);
+        theLineRenderer.gameObject.GetComponentInChildren<Text>().text = theTxt;
     }
 
 }
