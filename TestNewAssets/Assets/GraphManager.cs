@@ -147,7 +147,7 @@ public class GraphManager : MonoBehaviour
         //finalVidTime = initial Time + seconds added from drag
         finalVidTime = initialVidTime + (initialVidTime * ((kfOneObj.GetComponent<RectTransform>().localPosition.x - kfOneInitialPos.x)/screenWidth));
         updateMainLineRenderer(kfZeroObj.GetComponent<RectTransform>().localPosition, kfOneObj.GetComponent<RectTransform>().localPosition, true);
-        updateGraphPointInfoArr(false);
+        updateGraphPointInfoArr(true);
     }
 
     //updates mainLineRenderer using new kf positions
@@ -175,11 +175,11 @@ public class GraphManager : MonoBehaviour
         mainLineRenderer.SetPosition(mainLineRenderer.positionCount - 1, new Vector3(endCurveControl, graphMinY + graphRangeY, -1f));
     }
 
-    private void updateGraphPointInfoArr(bool initializing)
+    private void updateGraphPointInfoArr(bool draggedCurve)
     {
         for (int i = 0; i < mainLineRenderer.positionCount; i++)
         {
-            if(initializing)
+            if(!draggedCurve)
                 GraphPointInfoArr[i].startTime = ((mainLineRenderer.GetPosition(i).x - graphMinX)/screenWidth) * initialVidTime;
             GraphPointInfoArr[i].yVal = (mainLineRenderer.GetPosition(i).y - graphMinY) / graphRangeY;
             //Debug.Log("Point " + mainLineRenderer.GetPosition(i) + ": startTime=" + GraphPointInfoArr[i].startTime + " yval=" + GraphPointInfoArr[i].yVal);
@@ -236,7 +236,7 @@ public class GraphManager : MonoBehaviour
 
         //init and update graph point information to be used in ffmpeg
         GraphPointInfoArr = new GraphPointInfo[mainLineRenderer.positionCount];
-        updateGraphPointInfoArr(true);
+        updateGraphPointInfoArr(false);
 
         //events called when keyframes updated
         kfZeroObj.GetComponent<DragController>().OnButtonDragged += OnKFZeroDraggedHandler;
