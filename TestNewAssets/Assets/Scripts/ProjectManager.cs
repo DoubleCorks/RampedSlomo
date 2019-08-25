@@ -46,7 +46,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private Queue<FFmpegTask> taskQueue;
     private int taskQueueInitCount; //initial number of commands... could be better
 
-    public static int NumSegments = 5;
+    public static int NumSegments = 7;
 
     #region Monobehaviors
 
