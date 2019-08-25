@@ -29,21 +29,24 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     //ui elements
     [SerializeField] private GameObject _playButton;
     [SerializeField] private GameObject _pauseButton;
-    [SerializeField] private GameObject _doButton;
+    [SerializeField] private GameObject _processButton;
     [SerializeField] private Slider _videoTrack;
-    [SerializeField] private Slider _keyFrameOne;
-    [SerializeField] private Slider _keyFrameTwo;
     [SerializeField] private RawImage _thumbnail;
+    [SerializeField] private GraphManager _graphManager;
+    [SerializeField] private GameObject _inputBlocker;
+    [SerializeField] private Image _progressBar;
+    [SerializeField] private Text _progressText;
 
     private bool canSlide;
+    private bool wasPlaying;
     private HashSet<string> filesToRemove;
     private string vidDirectoryPath;
     private string vidListFilePath;
-    private Dictionary<string, float> keyFrameDict; //maps keyFrameName to time value (in seconds) where it lies on timeline. i.e keyframe1:1.4s
     private delegate void FFmpegTask();
     private Queue<FFmpegTask> taskQueue;
+    private int taskQueueInitCount; //initial number of commands... could be better
 
-    public static int NumSegments = 21;
+    public static int NumSegments = 5;
 
     #region Monobehaviors
 
@@ -51,17 +54,16 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void Start()
     {
         //media player ui
-        _playButton.SetActive(true);
+        _playButton.SetActive(false);
         _pauseButton.SetActive(false);
+        _processButton.SetActive(false);
         canSlide = false;
-        _doButton.SetActive(false);
-
-        //keyframes
-        _keyFrameOne.gameObject.SetActive(false);
-        _keyFrameTwo.gameObject.SetActive(false);
+        wasPlaying = false;
+        _inputBlocker.SetActive(false);
 
         //vid player callbacks
         _videoPlayer.prepareCompleted += VideoPrepareCompleted;
+        _graphManager.OnGraphPointArrUpdated += OnGraphPointArrUpdatedHandler;
 
         //folder and file paths
         vidDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, TEST_NEW_ASSETS_MOVIES_DIRECTORY);
@@ -78,6 +80,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void OnDestroy()
     {
         _videoPlayer.prepareCompleted -= VideoPrepareCompleted;
+        _graphManager.OnGraphPointArrUpdated -= OnGraphPointArrUpdatedHandler;
     }
 
     #endregion
@@ -86,34 +89,30 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     public void OnVideoSliderPointerDown()
     {
-        Debug.Log("OnSliderPointerDown");
-        _playButton.SetActive(false);
-        _pauseButton.SetActive(true);
-        canSlide = true;
+        _playButton.SetActive(true);
+        _pauseButton.SetActive(false);
         _videoPlayer.Pause();
+        canSlide = true;
     }
 
     public void OnVideoSliderPointerUp()
     {
-        Debug.Log("OnSliderPointerUp");
         float frame = (float)_videoTrack.value * (float)_videoPlayer.frameCount;
         _videoPlayer.frame = (long)frame;
-        _videoPlayer.Play();
-        canSlide = false;
-    }
-
-    public void OnKeyFrameSliderPointerDown(GameObject theKeyFrameSlider)
-    {
-        //Show thumbnails - nothing else?
-        Debug.Log("OnKeyFrameSliderPointerDown");
-    }
-
-    public void OnKeyFrameSliderPointerUp(GameObject theKeyFrameSlider)
-    {
-        Debug.Log("OnKeyFrameSliderPointerUp");
-        float vidTime = CalcVidTimeFromSliderFrame(theKeyFrameSlider.GetComponent<Slider>());
-        Debug.Log("vidTime calced = " + vidTime);
-        AddSliderFrameTimeToKFDict(theKeyFrameSlider.GetComponent<Slider>(), vidTime);
+        if(wasPlaying)
+        {
+            _playButton.SetActive(false);
+            _pauseButton.SetActive(true);
+            canSlide = false;
+            _videoPlayer.Play();
+        }
+        else
+        {
+            _videoPlayer.Play();
+            _thumbnail.texture = _videoPlayer.texture;
+            _videoPlayer.Pause();
+            canSlide = false;
+        }
     }
 
     public void OnPlayButtonClick()
@@ -127,6 +126,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         {
             _playButton.SetActive(false);
             _pauseButton.SetActive(true);
+            wasPlaying = true;
             _videoPlayer.Play();
         }
     }
@@ -134,15 +134,18 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnPauseButtonClick()
     {
         Debug.Log("OnPauseButtonClick");
-        _thumbnail.texture = _videoPlayer.texture;
         _playButton.SetActive(true);
         _pauseButton.SetActive(false);
+        wasPlaying = false;
         _videoPlayer.Pause();
     }
 
-    public void OnDoFFMpegCommandClick()
+    public void OnProcessVideoClicked()
     {
-        //Debug.Log("applying filters taskQueue.Count= ");
+        //begins processing the video
+        _inputBlocker.SetActive(true);
+        taskQueueInitCount = taskQueue.Count;
+        _progressBar.fillAmount = 0;
         taskQueue.Dequeue()();
     }
 
@@ -150,8 +153,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     {
         Debug.Log("onChooseButtonClicked");
         //keyframes - dont try and change keyframe vals while no vid is there
-        _keyFrameOne.gameObject.SetActive(false);
-        _keyFrameTwo.gameObject.SetActive(false);
         _thumbnail.gameObject.SetActive(true);
 
         var generatePreviewImages = true;
@@ -209,7 +210,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     //progress bar here (parse msg)
     public void OnProgress(string msg)
     {
-        Debug.Log("OnProgress");
+        //Debug.Log("OnProgress");
     }
 
     //Notify user about failure here
@@ -231,6 +232,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         if (taskQueue.Count > 0)
         {
             taskQueue.Dequeue()();
+            _progressBar.fillAmount += 1f / (float)taskQueueInitCount;
         }
         else
         {
@@ -243,8 +245,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                     File.Delete(s);
                     Debug.Log("File:" + s + " deleted");
                 }
-
             }
+            Debug.Log("done");
+            _progressText.text = "done";
+            _inputBlocker.SetActive(false);
         }      
     }
 
@@ -264,28 +268,16 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _thumbnail.texture = _vp.texture;
         _vp.Pause();
 
-        //keyframes
-        _keyFrameOne.gameObject.SetActive(true);
-        _keyFrameTwo.gameObject.SetActive(true);
-        keyFrameDict = new Dictionary<string, float>();
-        _keyFrameOne.value = .25f;
-        _keyFrameTwo.value = .75f;
-        AddSliderFrameTimeToKFDict(_keyFrameOne, CalcVidTimeFromSliderFrame(_keyFrameOne));
-        AddSliderFrameTimeToKFDict(_keyFrameTwo, CalcVidTimeFromSliderFrame(_keyFrameTwo));
-
         //ffmpeg
         ClearAllTxt();
         filesToRemove = new HashSet<string>();
         FFmpegParser.Handler = this;
         taskQueue = new Queue<FFmpegTask>();
-        FFmpegTask firstTrim = new FFmpegTask(TrimSectionOne);
-        FFmpegTask lastTrim = new FFmpegTask(TrimSectionThree);
-        FFmpegTask concat = new FFmpegTask(ConcatenateSections);
-        taskQueue.Enqueue(firstTrim);
-        AddSlowMoCommandsToQueue(NumSegments, 4.0f); //num segs needs to be odd
-        taskQueue.Enqueue(lastTrim);
-        taskQueue.Enqueue(concat);
-        _doButton.SetActive(true);
+        _processButton.SetActive(true);
+        _playButton.SetActive(true);
+
+        //graph
+        _graphManager.InitializeScrollGraph((float)_vp.length);
     }
 
     /// <summary>
@@ -298,82 +290,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         Directory.CreateDirectory(vidDirectoryPath);
         string result = System.IO.Path.Combine(vidDirectoryPath, fileName); //have something more sophisticated here
         return result;
-    }
-
-    /// <summary>
-    /// Calculates what video time key to add to keyframe dict using current value of the slider
-    /// </summary>
-    /// <param name="theSlider"></param>
-    /// <returns></returns>
-    private float CalcVidTimeFromSliderFrame(Slider theSlider)
-    {
-        float keyFrameSliderVal = theSlider.value;
-        float curframe = keyFrameSliderVal * (float)_videoPlayer.frameCount;
-        Debug.Log("sval=" + keyFrameSliderVal + " framecount=" + _videoPlayer.frameCount + " length=" + _videoPlayer.length);
-        float curTime = (curframe / _videoPlayer.frameCount) * (float)_videoPlayer.length; //percent * total seconds
-        return curTime;
-    }
-
-    /// <summary>
-    /// Adds a slider frame time to keyframe dicts
-    /// </summary>
-    /// <param name="theSlider"></param>
-    /// <param name="timeToAdd"></param>
-    private void AddSliderFrameTimeToKFDict(Slider theSlider, float timeToAdd)
-    {
-        if (!keyFrameDict.ContainsKey(theSlider.gameObject.name))
-        {
-            keyFrameDict.Add(theSlider.gameObject.name, timeToAdd);
-        }
-        else
-        {
-            keyFrameDict[theSlider.gameObject.name] = timeToAdd;
-        }
-    }
-
-    /// <summary>
-    /// Trims the first section of the video before effect
-    /// -c:v libx264 -preset ultrafast -crf 0 -acodec aac
-    /// </summary>
-    private void TrimSectionOne()
-    {
-        Debug.Log("TRIMMING SECTION ONE");
-        WriteStringToTxtFile(HandleDirectory(TRIMMED_SECTION_ONE));
-        //-ss = starting time, -t = duration
-        //so this is: only between start-kf1, apply this trim filter;
-        float duration = keyFrameDict[_keyFrameOne.gameObject.name];
-        string commands = "-ss&0.0&-t&" + duration + "&-y&-i&" + 
-            _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0];[0:a]aresample=44100[a0]&-map&[v0]&-map&[a0]"
-            + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" + HandleDirectory(TRIMMED_SECTION_ONE);
-        FFmpegCommands.AndDirectInput(commands);
-    }
-
-
-    /// <summary>
-    /// Trims the third section of the video after effect
-    /// </summary>
-    private void TrimSectionThree()
-    {
-        Debug.Log("TRIMMING SECTION Three");
-        WriteStringToTxtFile(HandleDirectory(TRIMMED_SECTION_THREE));
-        //-ss = starting time, -t = duration
-        //so this is: only between kf2-end, apply this trim filter;
-        float duration = (float)_videoPlayer.length - keyFrameDict[_keyFrameTwo.gameObject.name];
-        string commands = "-ss&"+keyFrameDict[_keyFrameTwo.gameObject.name]+"&-t&" + duration + "&-y&-i&" +
-            _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0];[0:a]aresample=44100[a0]&-map&[v0]&-map&[a0]"
-            + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" + HandleDirectory(TRIMMED_SECTION_THREE);
-        FFmpegCommands.AndDirectInput(commands);
-    }
-
-    /// <summary>
-    /// Concatenates all temp videos into one main video
-    /// </summary>
-    private void ConcatenateSections()
-    {
-        Debug.Log("CONCATENATING SECTIONS");
-        Debug.Log(File.ReadAllText(vidListFilePath));
-        string commands = "-f&concat&-safe&0&-y&-i&"+ vidListFilePath + "&-c:v&copy&" + HandleDirectory("concatMuxer.mp4");
-        FFmpegCommands.AndDirectInput(commands);
     }
 
     private void WriteStringToTxtFile(string s)
@@ -405,60 +321,69 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         return (1/slowMult);
     }
 
-    /// <summary>
-    /// Enqueues all slomo commands between time segments
-    /// </summary>
-    /// <param name="numSegments"></param>
-    private void AddSlowMoCommandsToQueue(int numSegments, float slow_mult_desired)
+    private void OnGraphPointArrUpdatedHandler()
     {
-        int halfNumSeg = numSegments / 2;
-        float inc = (slow_mult_desired-1.0f)/(halfNumSeg + 1f);
-        Debug.Log("AddSlomoCommandsToQueue " + numSegments + " half" + halfNumSeg + " inc" + inc);
-        for (int i = 1; i < numSegments+1; i++)
-        {
-            float slowMult = 1.0f; //normal speed default
-            Debug.Log("inc:" + inc + " i:" + i + " halfnumSeg:" + halfNumSeg);
-            if (i < halfNumSeg+1)
-            {
-                slowMult = (inc * i) + 1;
-                Debug.Log("inc:" + inc + " i:" + i + " slowMult:" + slowMult);
-            }
-            else if(i == halfNumSeg+1)
-            {
-                slowMult = slow_mult_desired;
-                Debug.Log("inc:" + inc + " i:" + i + " slowMult:" + slowMult);
-            }
-            else
-            {
-                slowMult = slow_mult_desired - (i%(halfNumSeg+1))*inc;
-                Debug.Log("inc:" + inc + " i:" + i + " slowMult:" + slowMult);
-            }
-            int enqueueIdx = i;
-            string fileName = HandleDirectory("slomoSection" + enqueueIdx + ".mov");
-            taskQueue.Enqueue(() => NewSlomoSection(enqueueIdx, numSegments, slowMult, fileName));
-        }
+        CreateAndEnqueueRampedCommands(_graphManager.GetGraphPointInfoArr());
     }
 
-    /// <summary>
-    /// Sets up and executes a slomo command at a specific interval
-    /// </summary>
-    /// <param name="numSegments"></param>
-    /// <param name="index"></param>
-    /// <param name="fileName"></param>
-    private void NewSlomoSection(int index, int numSegments, float slowMult, string fileName)
+    private void CreateAndEnqueueRampedCommands(GraphPointInfo[] gpiArr)
     {
-        Debug.Log("NewSlomoSection with params:" + index + ":" + numSegments + ":" + slowMult + ":" + fileName);
+        //empty out the task queue
+        taskQueue.Clear();
+
+        //trim section 1
+        taskQueue.Enqueue(() => trimSection(gpiArr[0].startTime, gpiArr[1].startTime, TRIMMED_SECTION_ONE));
+
+        //slow sections
+        for (int i = 1; i < NumSegments+1; i++)
+        {
+            int enqueue_idx = i;
+            taskQueue.Enqueue(() => slowSection(gpiArr[enqueue_idx].startTime, gpiArr[enqueue_idx + 1].startTime-gpiArr[enqueue_idx].startTime, "slowSection"+ enqueue_idx + ".mov", (1f/gpiArr[enqueue_idx].yVal)));
+        }
+
+        //trim section 3
+        taskQueue.Enqueue(() => trimSection(gpiArr[NumSegments+1].startTime, gpiArr[NumSegments+2].startTime-gpiArr[NumSegments+1].startTime, TRIMMED_SECTION_THREE));
+
+        //concat
+        taskQueue.Enqueue(() => ConcatenateSections());
+    }
+
+    private void trimSection(float startTime, float duration, string fileName)
+    {
+        WriteStringToTxtFile(HandleDirectory(fileName));
+        _progressText.text = "trimmming!";
+        //-ss = starting time, -t = duration
+        //so this is: only between start-kf1, apply this trim filter;
+        string commands = "-ss&"+ startTime + "&-t&" + duration + "&-y&-i&" +
+            _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0];[0:a]aresample=44100[a0]&-map&[v0]&-map&[a0]"
+            + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" + HandleDirectory(fileName);
+        FFmpegCommands.AndDirectInput(commands);
+    }
+
+    private void slowSection(float startTime, float duration, string fileName, float slowMult)
+    {
         WriteStringToTxtFile(fileName);
+        _progressText.text = fileName;
         //-ss = starting time, -t = duration
         //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
-        float duration = (keyFrameDict[_keyFrameTwo.gameObject.name] - keyFrameDict[_keyFrameOne.gameObject.name]) / numSegments;
         float audioMult = CalculateAudioMult(slowMult);
-        float ss = keyFrameDict[_keyFrameOne.gameObject.name] + ((index-1) * duration);
-        string commands = "-ss&" + ss + "&-t&" + duration +
+        string commands = "-ss&" + startTime + "&-t&" + duration +
             "&-y&-i&" + _videoPlayer.url +
             "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
             "&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
             HandleDirectory(fileName);
+        FFmpegCommands.AndDirectInput(commands);
+    }
+
+    /// <summary>
+    /// Concatenates all temp videos into one main video
+    /// </summary>
+    private void ConcatenateSections()
+    {
+        Debug.Log("CONCATENATING SECTIONS");
+        Debug.Log(File.ReadAllText(vidListFilePath));
+        _progressText.text = "concat demuxing";
+        string commands = "-f&concat&-safe&0&-y&-i&" + vidListFilePath + "&-c:v&copy&" + HandleDirectory("concatMuxer.mp4");
         FFmpegCommands.AndDirectInput(commands);
     }
 

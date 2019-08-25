@@ -7,15 +7,13 @@ using System;
 
 public class GraphManager : MonoBehaviour
 {
-    //KnownVidVariables
-    [SerializeField] private float _fakeInitialVidTime;
-
     //graph inspector vars
     [SerializeField] private GameObject _scrollGraphView;
     [SerializeField] private GameObject _scrollGraphContent;
     [SerializeField] private GameObject _scrollGraphPrefab;
     [SerializeField] private GameObject _timeStampPrefab;
     [SerializeField] private GameObject _guidesObj;
+    [SerializeField] private GameObject _placeHolderGraphObj;
 
     private ScrollRect scrollGraphRect;
     private GuidesController guidesController;
@@ -37,6 +35,7 @@ public class GraphManager : MonoBehaviour
     private float screenWidth;
     private float screenHeight;
     private float finalVidTime;
+    private float initialVidTime;
 
     //constant vals
     private static int graphLength = 5;
@@ -45,6 +44,7 @@ public class GraphManager : MonoBehaviour
 
     //the graph point info arr
     public GraphPointInfo[] GraphPointInfoArr;
+    public System.Action OnGraphPointArrUpdated = null;
 
     // Start is called before the first frame update
     private void Start()
@@ -52,46 +52,22 @@ public class GraphManager : MonoBehaviour
         //graph offsets and values
         screenWidth = _scrollGraphView.GetComponent<RectTransform>().rect.width;
         screenHeight = _scrollGraphView.GetComponent<RectTransform>().rect.height;
-        timeStampYOffset = (screenHeight / 2) - 15; //15 below top, regardless of however tall graph is
-        graphMinY = -1 * (screenHeight / 2) + 20; //graph starts right above scroll bar which is 20 tall
-        graphMaxY = (screenHeight / 2) - 45; //45 below top, regardless of however tall graph is
+        timeStampYOffset = (screenHeight / 2) - 60; //70 below top, regardless of however tall graph is
+        graphMinY = -1 * (screenHeight / 2) + 80; //graph starts right above scroll bar which is 80 tall
+        graphMaxY = (screenHeight / 2) - 190; //180 below top, regardless of however tall graph is
         graphRangeY = graphMaxY - graphMinY;
         graphMinX = -1 * ((screenWidth * graphLength) / 2); //beginning of graph however wide
         graphMaxX = graphMinX * -1; //end of graph however wide
         graphRangeX = graphMaxX - graphMinX;
-        finalVidTime = _fakeInitialVidTime;
 
         //scrollable obj and ui obj
         scrollGraphRect = _scrollGraphView.GetComponent<ScrollRect>();
         guidesController = _guidesObj.GetComponent<GuidesController>();
-      
-        //generate a scroll graph with scaling and timeline
-        scrollGraphObj = generateScrollGraph(_fakeInitialVidTime);
 
-        //add keyframes and draw the line on top of scrollGraphObj's
-        kfZeroObj = scrollGraphObj.GetComponent<ScrollGraphController>().GetKeyFrameZero();
-        kfOneObj = scrollGraphObj.GetComponent<ScrollGraphController>().GetKeyFrameOne();
-        curveController = scrollGraphObj.GetComponent<ScrollGraphController>().GetCurveController();
-        mainLineRenderer = scrollGraphObj.GetComponent<LineRenderer>();
-        kfZeroObj.GetComponent<RectTransform>().localPosition = new Vector3(graphMinX + .25f * screenWidth, graphMinY + graphRangeY, -1f);
-        kfOneObj.GetComponent<RectTransform>().localPosition = new Vector3(graphMinX + .75f * screenWidth, graphMinY + graphRangeY, -1f);
-        kfOneInitialPos = kfOneObj.GetComponent<RectTransform>().localPosition;
-        handleCurveControlFinalPos(graphMinX + screenWidth);
-        updateMainLineRenderer(kfZeroObj.GetComponent<RectTransform>().localPosition, kfOneObj.GetComponent<RectTransform>().localPosition, false);
-        GraphPointInfoArr = new GraphPointInfo[mainLineRenderer.positionCount];
-        updateGraphPointInfoArr();
-
-        //events called when keyframes updated
-        kfZeroObj.GetComponent<DragController>().OnButtonDragged += OnKFZeroDraggedHandler;
-        kfOneObj.GetComponent<DragController>().OnButtonDragged += OnKFOneDraggedHandler;
-        curveController.GetComponent<DragController>().OnButtonDragged += OnCurveControlDraggedHandler;
-
-    }
-
-    // Update is called once per frame
-    private void Update()
-    {
-        //scroll?   
+        //no graph on start
+        _scrollGraphView.SetActive(false); //doesnt actually do anything visually
+        _guidesObj.SetActive(false);
+        _placeHolderGraphObj.SetActive(true);
     }
 
     private void OnDestroy()
@@ -101,7 +77,7 @@ public class GraphManager : MonoBehaviour
         curveController.GetComponent<DragController>().OnButtonDragged -= OnCurveControlDraggedHandler;
     }
 
-    private GameObject generateScrollGraph(float theInitialVidLength)
+    private GameObject generateScrollGraph()
     {
         //Instantiate the graph obj
         GameObject newScrollGraphObj = GameObject.Instantiate(_scrollGraphPrefab);
@@ -119,7 +95,7 @@ public class GraphManager : MonoBehaviour
             float percentPos = ((float)i / numPts);
             float percentVal = ((float)i / numStampsOnScreen);
             Vector2 timeLineCurPt = timeStampsStartPos + percentPos * (timeStampsEndPos - timeStampsStartPos); //calc point pos on timeline
-            float timeStampVal = percentVal * _fakeInitialVidTime; //calc val at that point
+            float timeStampVal = percentVal * initialVidTime; //calc val at that point
             GameObject timeStampObj = GameObject.Instantiate(_timeStampPrefab); //cool timeStamp prefab
             timeStampObj.GetComponent<Text>().text = toRatingRes(timeStampVal).ToString() + "s\n|"; //add some text
             timeStampObj.transform.localPosition = timeLineCurPt; //set its transform
@@ -132,7 +108,7 @@ public class GraphManager : MonoBehaviour
         {
             LineRenderer guideLine = child.GetComponent<LineRenderer>();
             float guide_val = graphMinY + graphRangeY * guidePercent;
-            guidesController.BuildGuide(guideLine, screenWidth, guide_val, .25f, guidePercent.ToString());
+            guidesController.BuildGuide(guideLine, screenWidth, guide_val, .085f, guidePercent.ToString());
             guidePercent += .5f;
         }
 
@@ -151,7 +127,7 @@ public class GraphManager : MonoBehaviour
     {
         ProjectManager.DebugLog("p=" + p.ToString());
         updateMainLineRenderer(new Vector3(p.x, p.y, -1f), kfOneObj.GetComponent<RectTransform>().localPosition, false);
-        updateGraphPointInfoArr();
+        updateGraphPointInfoArr(false);
     }
 
     private void OnKFOneDraggedHandler(Vector2 p)
@@ -160,7 +136,7 @@ public class GraphManager : MonoBehaviour
         kfOneInitialPos = kfOneObj.GetComponent<RectTransform>().localPosition;
         handleCurveControlFinalPos(mainLineRenderer.GetPosition(mainLineRenderer.positionCount - 1).x);
         updateMainLineRenderer(kfZeroObj.GetComponent<RectTransform>().localPosition, new Vector3(p.x, p.y, -1f), false);
-        updateGraphPointInfoArr();
+        updateGraphPointInfoArr(false);
     }
 
     private void OnCurveControlDraggedHandler(Vector2 p)
@@ -169,10 +145,9 @@ public class GraphManager : MonoBehaviour
         kfOneObj.GetComponent<DragController>().enabled = false; //can no longer adjust kfOne, sorry its the rules
         handleKFOneFinalPos(); //keep kfOne at tail of curveController
         //finalVidTime = initial Time + seconds added from drag
-        finalVidTime = _fakeInitialVidTime + (_fakeInitialVidTime*((kfOneObj.GetComponent<RectTransform>().localPosition.x - kfOneInitialPos.x)/screenWidth));
-        Debug.Log("finalVidTime =" + finalVidTime);
+        finalVidTime = initialVidTime + (initialVidTime * ((kfOneObj.GetComponent<RectTransform>().localPosition.x - kfOneInitialPos.x)/screenWidth));
         updateMainLineRenderer(kfZeroObj.GetComponent<RectTransform>().localPosition, kfOneObj.GetComponent<RectTransform>().localPosition, true);
-        updateGraphPointInfoArr();
+        updateGraphPointInfoArr(false);
     }
 
     //updates mainLineRenderer using new kf positions
@@ -188,8 +163,8 @@ public class GraphManager : MonoBehaviour
             if (drawCurve)
             {
                 //y = (x-delta_k)x where delta_k is the seconds which curveController was dragged and x is current timepoint in seconds
-                float currPointXFromRamp = ((float)i / ProjectManager.NumSegments) * (finalVidTime - _fakeInitialVidTime);
-                float currPointY = 1 + ((currPointXFromRamp - (finalVidTime-_fakeInitialVidTime)) * currPointXFromRamp);
+                float currPointXFromRamp = ((float)i / ProjectManager.NumSegments) * (finalVidTime - initialVidTime);
+                float currPointY = 1 + ((currPointXFromRamp - (finalVidTime- initialVidTime)) * currPointXFromRamp);
                 //currPointY is correct audio slow value
                 currPoint = new Vector3(currPointX, graphMinY + currPointY * graphRangeY, -1f);
             }
@@ -200,14 +175,17 @@ public class GraphManager : MonoBehaviour
         mainLineRenderer.SetPosition(mainLineRenderer.positionCount - 1, new Vector3(endCurveControl, graphMinY + graphRangeY, -1f));
     }
 
-    private void updateGraphPointInfoArr()
+    private void updateGraphPointInfoArr(bool initializing)
     {
         for (int i = 0; i < mainLineRenderer.positionCount; i++)
         {
-            GraphPointInfoArr[i].startTime = ((mainLineRenderer.GetPosition(i).x - graphMinX)/screenWidth) * _fakeInitialVidTime;
+            if(initializing)
+                GraphPointInfoArr[i].startTime = ((mainLineRenderer.GetPosition(i).x - graphMinX)/screenWidth) * initialVidTime;
             GraphPointInfoArr[i].yVal = (mainLineRenderer.GetPosition(i).y - graphMinY) / graphRangeY;
             //Debug.Log("Point " + mainLineRenderer.GetPosition(i) + ": startTime=" + GraphPointInfoArr[i].startTime + " yval=" + GraphPointInfoArr[i].yVal);
         }
+        if (OnGraphPointArrUpdated != null)
+            OnGraphPointArrUpdated();
     }
 
     private void handleKFOneFinalPos()
@@ -229,6 +207,41 @@ public class GraphManager : MonoBehaviour
     public GraphPointInfo[] GetGraphPointInfoArr()
     {
         return GraphPointInfoArr;
+    }
+
+    public void InitializeScrollGraph(float initVidTime)
+    {
+        //make graph visible and children accesible
+        _scrollGraphView.SetActive(true);
+        _guidesObj.SetActive(true);
+        _placeHolderGraphObj.SetActive(false);
+
+        //generate a scroll graph with scaling and timeline
+        initialVidTime = initVidTime;
+        finalVidTime = initVidTime;
+        scrollGraphObj = generateScrollGraph();
+
+        //cache movable objects
+        kfZeroObj = scrollGraphObj.GetComponent<ScrollGraphController>().GetKeyFrameZero();
+        kfOneObj = scrollGraphObj.GetComponent<ScrollGraphController>().GetKeyFrameOne();
+        curveController = scrollGraphObj.GetComponent<ScrollGraphController>().GetCurveController();
+        mainLineRenderer = scrollGraphObj.GetComponent<LineRenderer>();
+
+        //set objects init locations
+        kfZeroObj.GetComponent<RectTransform>().localPosition = new Vector3(graphMinX + .25f * screenWidth, graphMinY + graphRangeY, -1f);
+        kfOneObj.GetComponent<RectTransform>().localPosition = new Vector3(graphMinX + .75f * screenWidth, graphMinY + graphRangeY, -1f);
+        kfOneInitialPos = kfOneObj.GetComponent<RectTransform>().localPosition;
+        handleCurveControlFinalPos(graphMinX + screenWidth);
+        updateMainLineRenderer(kfZeroObj.GetComponent<RectTransform>().localPosition, kfOneObj.GetComponent<RectTransform>().localPosition, false);
+
+        //init and update graph point information to be used in ffmpeg
+        GraphPointInfoArr = new GraphPointInfo[mainLineRenderer.positionCount];
+        updateGraphPointInfoArr(true);
+
+        //events called when keyframes updated
+        kfZeroObj.GetComponent<DragController>().OnButtonDragged += OnKFZeroDraggedHandler;
+        kfOneObj.GetComponent<DragController>().OnButtonDragged += OnKFOneDraggedHandler;
+        curveController.GetComponent<DragController>().OnButtonDragged += OnCurveControlDraggedHandler;
     }
 }
 

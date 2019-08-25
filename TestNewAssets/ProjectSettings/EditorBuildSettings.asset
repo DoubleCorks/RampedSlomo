@@ -5,10 +5,13 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/FFmpegTest.unity
     guid: 26de91fe7d35c5244a0cd607d81b2b3d
   - enabled: 0
     path: Assets/FFmpeg/FFmpegDemo/FFmpegDemo.unity
     guid: 042171e577ff27c4aaa1dd2bf0a05748
+  - enabled: 1
+    path: Assets/Scenes/ProjectScene.unity
+    guid: 2836a60a17c440c4d959e42e168d72c0
   m_configObjects: {}
