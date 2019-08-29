@@ -14,6 +14,7 @@ using System;
 #if PLATFORM_ANDROID
 using UnityEngine.Android;
 #endif
+using SimpleFileBrowser;
 
 public class ProjectManager : MonoBehaviour, IFFmpegHandler
 {
@@ -32,6 +33,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     [SerializeField] private GameObject _processButton;
     [SerializeField] private Slider _videoTrack;
     [SerializeField] private RawImage _thumbnail;
+    [SerializeField] private Texture2D _watermark;
     [SerializeField] private GraphManager _graphManager;
     [SerializeField] private GameObject _inputBlocker;
     [SerializeField] private Image _progressBar;
@@ -40,13 +42,14 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private bool canSlide;
     private bool wasPlaying;
     private HashSet<string> filesToRemove;
-    private string vidDirectoryPath;
-    private string vidListFilePath;
+    private string vidDirectoryPath; //path to directory which original vid lives in
+    private string vidListPath; //path to new directory which edited video will live in
+    private string vidPath; //path to original vid to edit
     private delegate void FFmpegTask();
     private Queue<FFmpegTask> taskQueue;
     private int taskQueueInitCount; //initial number of commands... could be better
 
-    public static int NumSegments = 7;
+    public static int NumSegments = 5;
 
     #region Monobehaviors
 
@@ -65,9 +68,14 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _videoPlayer.prepareCompleted += VideoPrepareCompleted;
         _graphManager.OnGraphPointArrUpdated += OnGraphPointArrUpdatedHandler;
 
-        //folder and file paths
-        vidDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, TEST_NEW_ASSETS_MOVIES_DIRECTORY);
-        vidListFilePath = System.IO.Path.Combine(vidDirectoryPath, VID_FILES_TXT);
+        //file path initialization
+        vidDirectoryPath = "";
+        vidListPath = "";
+        vidPath = "";
+        
+        //taskqueue initialization
+        taskQueue = new Queue<FFmpegTask>();
+        filesToRemove = new HashSet<string>();
     }
 
     // Update is called once per frame
@@ -145,6 +153,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //begins processing the video
         _inputBlocker.SetActive(true);
         taskQueueInitCount = taskQueue.Count;
+        DebugLog(taskQueueInitCount.ToString());
         _progressBar.fillAmount = 0;
         taskQueue.Dequeue()();
     }
@@ -152,19 +161,30 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnChooseVideoClicked()
     {
         Debug.Log("onChooseButtonClicked");
-        //keyframes - dont try and change keyframe vals while no vid is there
-        _thumbnail.gameObject.SetActive(true);
+        _thumbnail.gameObject.SetActive(true); //hmmmmm
 
-        var generatePreviewImages = true;
+        //handle file path creations of vidDirectoryPath, vidListPath, vidPath
+#if UNITY_EDITOR
+        FileBrowser.SetFilters(true, new FileBrowser.Filter("Movies", ".mov", ".mp4"));
+        StartCoroutine(ShowLoadDialogCoroutine()); //vidPath, vidDirectoryPath, vidListPath set here
+
+#elif UNITY_ANDROID && !UNITY_EDITOR
+        vidDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, TEST_NEW_ASSETS_MOVIES_DIRECTORY);
+        bool generatePreviewImages = false;
         AGFilePicker.PickVideo(videoFile =>
         {
-            var msg = "Video file was picked: " + videoFile;
-            string videoPath = videoFile.OriginalPath;
-            _videoPlayer.url = videoPath;
-            _videoPlayer.Prepare();
+            string msg = "Video file was picked: " + videoFile;
+            vidPath = videoFile.OriginalPath;
             AGUIMisc.ShowToast(msg);
+            vidDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, TEST_NEW_ASSETS_MOVIES_DIRECTORY);
+            vidListPath = System.IO.Path.Combine(vidDirectoryPath, VID_FILES_TXT);
+            Directory.CreateDirectory(vidDirectoryPath);
+            Debug.Log("vidPath=" + vidPath + ": vidDirectoryPath=" + vidDirectoryPath + ": vidListPath=" + vidListPath);
+            _videoPlayer.url = vidPath;
+            _videoPlayer.Prepare();
         },
             error => AGUIMisc.ShowToast("Cancelled picking video file: " + error), generatePreviewImages);
+#endif
     }
 
     public void OnGetPermissionClick()
@@ -210,7 +230,24 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     //progress bar here (parse msg)
     public void OnProgress(string msg)
     {
-        //Debug.Log("OnProgress");
+        //use below to debug why ffmpeg fails... which happens a lot
+        /*
+        int msg_length = msg.Length;
+        if(msg_length > 1000)
+        {
+            int num_loops = msg_length / 1000;
+            for (int i = 0; i < num_loops; i++)
+            {
+                Debug.Log("OnProgress:" + msg.Substring((i*1000),1000));
+            }
+            Debug.Log("OnProgress:" + msg.Substring(num_loops * 1000, msg_length - (num_loops * 1000)));            
+        }
+        else
+        {
+            Debug.Log("OnProgress:" + msg);
+        }
+        */
+        
     }
 
     //Notify user about failure here
@@ -248,6 +285,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             }
             Debug.Log("done");
             _progressText.text = "done";
+            //TODO: clean up and restart!
             _inputBlocker.SetActive(false);
         }      
     }
@@ -262,22 +300,72 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// <param name="_vp"></param>
     private void VideoPrepareCompleted(VideoPlayer _vp)
     {
+        DebugLog("here");
         //thumbnail
+        Debug.Log("thumbnail");
         _vp.time = 0;
         _vp.Play();
         _thumbnail.texture = _vp.texture;
         _vp.Pause();
 
         //ffmpeg
+        Debug.Log("ffmpeg");
         ClearAllTxt();
-        filesToRemove = new HashSet<string>();
+        taskQueue.Clear();
+        filesToRemove.Clear();
         FFmpegParser.Handler = this;
-        taskQueue = new Queue<FFmpegTask>();
         _processButton.SetActive(true);
         _playButton.SetActive(true);
 
         //graph
+        Debug.Log("graph");
         _graphManager.InitializeScrollGraph((float)_vp.length);
+
+        //test
+        taskQueue.Enqueue(() => watermarkFinal());
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    private IEnumerator ShowLoadDialogCoroutine()
+    {
+        yield return FileBrowser.WaitForLoadDialog(false, null, "Load", "Select");
+        Debug.Log(FileBrowser.Success + " " + FileBrowser.Result);
+        if (FileBrowser.Success)
+        {
+            vidPath = FileBrowser.Result;
+            vidDirectoryPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), TEST_NEW_ASSETS_MOVIES_DIRECTORY);
+            vidListPath = System.IO.Path.Combine(vidDirectoryPath, VID_FILES_TXT);
+            Directory.CreateDirectory(vidDirectoryPath);
+            Debug.Log("vidPath=" + vidPath + ": vidDirectoryPath=" + vidDirectoryPath + ": vidListPath=" + vidListPath);
+            _videoPlayer.url = vidPath;
+            _videoPlayer.Prepare();
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    private IEnumerator ShowSaveDialogCoroutine(byte[] buffer)
+    {
+        yield return FileBrowser.WaitForSaveDialog(false, null, "Save", "Save");
+        Debug.Log(FileBrowser.Success + " " + FileBrowser.Result);
+        if (FileBrowser.Success)
+        {
+            var file = File.Open(FileBrowser.Result, FileMode.OpenOrCreate);
+            var binary = new BinaryWriter(file);
+            binary.Write(buffer);
+            file.Close();
+            string commands = "-i&" + HandleDirectory("concatMuxer.mp4") + "&-i&" + HandleDirectory("MASfXWatermark.png") + "&-filter_complex&overlay=10:0&" + HandleDirectory("concatMuxerWatermark.mp4");
+            FFmpegCommands.AndDirectInput(commands);
+        }
+        else
+        {
+            DebugLog("FileBrowser not success");
+        }
     }
 
     /// <summary>
@@ -287,7 +375,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// <returns></returns>
     private string HandleDirectory(string fileName)
     {
-        Directory.CreateDirectory(vidDirectoryPath);
         string result = System.IO.Path.Combine(vidDirectoryPath, fileName); //have something more sophisticated here
         return result;
     }
@@ -296,16 +383,15 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     {
         filesToRemove.Add(s);
         //Write s to the test.txt file
-        StreamWriter writer = new StreamWriter(vidListFilePath, true);
+        StreamWriter writer = new StreamWriter(vidListPath, true);
         writer.WriteLine("file " + "'"+ s + "'");
         writer.Close();
     }
 
     private void ClearAllTxt()
     {
-        Directory.CreateDirectory(vidDirectoryPath);
         //Clear file but replacing (false), appending (true)
-        StreamWriter writer = new StreamWriter(vidListFilePath, false);
+        StreamWriter writer = new StreamWriter(vidListPath, false);
         writer.WriteLine(string.Empty);
         writer.Close();
     }
@@ -323,7 +409,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     private void OnGraphPointArrUpdatedHandler()
     {
-        CreateAndEnqueueRampedCommands(_graphManager.GetGraphPointInfoArr());
+        //CreateAndEnqueueRampedCommands(_graphManager.GetGraphPointInfoArr());
     }
 
     private void CreateAndEnqueueRampedCommands(GraphPointInfo[] gpiArr)
@@ -345,13 +431,16 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         taskQueue.Enqueue(() => trimSection(gpiArr[NumSegments+1].startTime, gpiArr[NumSegments+2].startTime-gpiArr[NumSegments+1].startTime, TRIMMED_SECTION_THREE));
 
         //concat
-        taskQueue.Enqueue(() => ConcatenateSections());
+        taskQueue.Enqueue(() => concatenateSections());
+
+        //watermark - for now
+        taskQueue.Enqueue(() => watermarkFinal());
     }
 
     private void trimSection(float startTime, float duration, string fileName)
     {
         WriteStringToTxtFile(HandleDirectory(fileName));
-        _progressText.text = "trimmming!";
+        _progressText.text = "trimSection";
         //-ss = starting time, -t = duration
         //so this is: only between start-kf1, apply this trim filter;
         string commands = "-ss&"+ startTime + "&-t&" + duration + "&-y&-i&" +
@@ -362,8 +451,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     private void slowSection(float startTime, float duration, string fileName, float slowMult)
     {
-        WriteStringToTxtFile(fileName);
-        _progressText.text = fileName;
+        WriteStringToTxtFile(HandleDirectory(fileName));
+        _progressText.text = fileName + " at " + startTime + " for " + duration + " at " + slowMult + " speed";
         //-ss = starting time, -t = duration
         //so this is: only between kf1-kf2, apply this slomo filter, useful for working on only the part that we want slomo'd
         float audioMult = CalculateAudioMult(slowMult);
@@ -378,13 +467,36 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// <summary>
     /// Concatenates all temp videos into one main video
     /// </summary>
-    private void ConcatenateSections()
+    private void concatenateSections()
     {
         Debug.Log("CONCATENATING SECTIONS");
-        Debug.Log(File.ReadAllText(vidListFilePath));
+        Debug.Log(File.ReadAllText(vidListPath));
         _progressText.text = "concat demuxing";
-        string commands = "-f&concat&-safe&0&-y&-i&" + vidListFilePath + "&-c:v&copy&" + HandleDirectory("concatMuxer.mp4");
+        string commands = "-f&concat&-safe&0&-y&-i&" + vidListPath + "&-c:v&copy&" + HandleDirectory("concatMuxer.mp4");
         FFmpegCommands.AndDirectInput(commands);
+    }
+
+    private void watermarkFinal()
+    {
+        //ffmpeg -i birds.mp4 -i watermark.png -filter_complex "overlay=10:10" birds1.mp4
+        _progressText.text = "watermarking";
+        Texture2D tex = Resources.Load("MASfXWatermark") as Texture2D;
+        byte[] watermarkBArr = tex.EncodeToPNG();
+        if(watermarkBArr != null)
+        {
+#if UNITY_EDITOR
+            StartCoroutine(ShowSaveDialogCoroutine(watermarkBArr));
+#elif UNITY_ANDROID && !UNITY_EDITOR
+            AndroidPersistanceUtilsInternal.SaveFileToExternalStorage(watermarkBArr, "MASfXWatermark.png", TEST_NEW_ASSETS_MOVIES_DIRECTORY); //=vidDirectoryPath consider something custom
+            string commands = "-i&" + HandleDirectory("concatMuxer.mp4") + "&-i&" + HandleDirectory("MASfXWatermark.png") + "&-filter_complex&overlay=10:0&" + HandleDirectory("concatMuxerWatermark.mp4");
+            FFmpegCommands.AndDirectInput(commands);
+#endif
+        }
+        else
+        {
+            Debug.Log("tex=" + tex.dimension + ":" + tex.format + ":" + tex.height);
+        }
+       
     }
 
     #endregion
