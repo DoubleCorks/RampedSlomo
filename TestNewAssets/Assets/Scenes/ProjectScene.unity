@@ -3593,7 +3593,6 @@ MonoBehaviour:
   _processButton: {fileID: 365917629}
   _videoTrack: {fileID: 1577627868}
   _thumbnail: {fileID: 362935203}
-  _watermark: {fileID: 2800000, guid: 96d2d6de82a49d44598232b6c9c2f454, type: 3}
   _graphManager: {fileID: 1077291268}
   _inputBlocker: {fileID: 161520056}
   _progressBar: {fileID: 478552223}
