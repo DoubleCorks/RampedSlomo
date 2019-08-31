@@ -72,9 +72,17 @@ public class GraphManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        kfZeroObj.GetComponent<DragController>().OnButtonDragged -= OnKFZeroDraggedHandler;
-        kfOneObj.GetComponent<DragController>().OnButtonDragged -= OnKFOneDraggedHandler;
-        curveController.GetComponent<DragController>().OnButtonDragged -= OnCurveControlDraggedHandler;
+        if(kfZeroObj != null && kfOneObj != null && curveController != null)
+        {
+            kfZeroObj.GetComponent<DragController>().OnButtonDragged -= OnKFZeroDraggedHandler;
+            kfOneObj.GetComponent<DragController>().OnButtonDragged -= OnKFOneDraggedHandler;
+            curveController.GetComponent<DragController>().OnButtonDragged -= OnCurveControlDraggedHandler;
+        }
+        else
+        {
+            Debug.Log("shouldnt have gotten here if graph was active");
+        }
+
     }
 
     private GameObject generateScrollGraph()
@@ -242,6 +250,20 @@ public class GraphManager : MonoBehaviour
         kfZeroObj.GetComponent<DragController>().OnButtonDragged += OnKFZeroDraggedHandler;
         kfOneObj.GetComponent<DragController>().OnButtonDragged += OnKFOneDraggedHandler;
         curveController.GetComponent<DragController>().OnButtonDragged += OnCurveControlDraggedHandler;
+    }
+
+    public void DestroyScrollGraph()
+    {
+        //make graph visible and children accesible
+        _scrollGraphView.SetActive(false);
+        _guidesObj.SetActive(false);
+        _placeHolderGraphObj.SetActive(true);
+
+        //generate a scroll graph with scaling and timeline
+        initialVidTime = 0;
+        finalVidTime = initialVidTime;
+        Destroy(scrollGraphObj);
+
     }
 }
 

@@ -33,7 +33,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     [SerializeField] private GameObject _pauseButton;
     [SerializeField] private GameObject _processButton;
     [SerializeField] private Slider _videoTrack;
-    [SerializeField] private RawImage _thumbnail;
     [SerializeField] private GraphManager _graphManager;
     [SerializeField] private GameObject _inputBlocker;
     [SerializeField] private Image _progressBar;
@@ -51,7 +50,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private Queue<FFmpegTask> taskQueue;
     private int taskQueueInitCount; //initial number of commands... could be better
 
-    public static int NumSegments = 5;
+    public static int NumSegments = 11;
 
     #region Monobehaviors
 
@@ -65,6 +64,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         canSlide = false;
         wasPlaying = false;
         _inputBlocker.SetActive(false);
+        _videoPlayer.targetTexture.Release();
 
         //vid player callbacks
         _videoPlayer.prepareCompleted += VideoPrepareCompleted;
@@ -87,7 +87,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     // Update is called once per frame
     private void Update()
     {
-        if(!canSlide)
+        if(!canSlide && _videoPlayer.enabled)
             _videoTrack.value = _videoPlayer.frame / (float)_videoPlayer.frameCount;
     }
 
@@ -103,10 +103,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     public void OnVideoSliderPointerDown()
     {
-        _playButton.SetActive(true);
-        _pauseButton.SetActive(false);
-        _videoPlayer.Pause();
-        canSlide = true;
+        if(_videoPlayer.enabled)
+        {
+            _playButton.SetActive(true);
+            _pauseButton.SetActive(false);
+            _videoPlayer.Pause();
+            canSlide = true;
+        }
     }
 
     public void OnVideoSliderPointerUp()
@@ -123,7 +126,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         else
         {
             _videoPlayer.Play();
-            _thumbnail.texture = _videoPlayer.texture;
             _videoPlayer.Pause();
             canSlide = false;
         }
@@ -132,10 +134,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnPlayButtonClick()
     {
         Debug.Log("OnPlayButtonClick");
-        if (_thumbnail.gameObject.activeInHierarchy)
-        {
-            _thumbnail.gameObject.SetActive(false);
-        }
         if (_videoPlayer.isPrepared)
         {
             _playButton.SetActive(false);
@@ -177,11 +175,17 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 #endif
     }
 
+    /// <summary>
+    /// test button
+    /// </summary>
     public void OnGetPermissionClick()
     {
+        /*
         Debug.Log("OnGetPermissionClick");
         Permission.RequestUserPermission(Permission.ExternalStorageRead);
         Permission.RequestUserPermission(Permission.ExternalStorageWrite);
+        */
+        ResetAll();
     }
 
     // TODO: MOVE THIS TO A COMMON CLASS AND MAKE IT public static   
@@ -214,6 +218,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     //progress bar here (parse msg)
     public void OnProgress(string msg)
     {
+        //Debug.Log(msg);
         //use below to debug why ffmpeg fails... which happens a lot
         /*
         int msg_length = msg.Length;
@@ -231,7 +236,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             Debug.Log("OnProgress:" + msg);
         }
         */
-        
+
     }
 
     //Notify user about failure here
@@ -268,9 +273,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 }
             }
             Debug.Log("done");
-            _progressText.text = "done";
-            //TODO: clean up and restart!
-            _inputBlocker.SetActive(false);
+            ResetAll();
         }      
     }
 
@@ -285,11 +288,9 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void VideoPrepareCompleted(VideoPlayer _vp)
     {
         //thumbnail
-        Debug.Log("thumbnail");
-        _thumbnail.gameObject.SetActive(true);
+        Debug.Log("fake thumbnail");
         _vp.time = 0;
         _vp.Play();
-        _thumbnail.texture = _vp.texture;
         _vp.Pause();
 
         //ffmpeg
@@ -304,6 +305,31 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //graph
         Debug.Log("graph");
         _graphManager.InitializeScrollGraph((float)_vp.length);
+    }
+
+    /// <summary>
+    /// Resets back to initial state with no video
+    /// </summary>
+    private void ResetAll()
+    {
+        //videoplayer reset
+        vidPath = "";
+        _videoPlayer.Stop();
+        _videoPlayer.targetTexture.Release();
+        _videoPlayer.enabled = false;
+        canSlide = false;
+        wasPlaying = false;
+
+        //ui button reset
+        _playButton.SetActive(false);
+        _pauseButton.SetActive(false);
+        _processButton.SetActive(false);
+        _inputBlocker.SetActive(false);
+        _videoTrack.value = 0;
+
+        //graph destruction
+        _graphManager.DestroyScrollGraph();
+
     }
 
     /// <summary>
@@ -336,6 +362,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
             //videoplayer setup
             _videoPlayer.url = vidPath;
+            _videoPlayer.enabled = true;
             _videoPlayer.Prepare();
         }
     }
@@ -369,6 +396,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
             //videoplayer setup
             _videoPlayer.url = vidPath;
+            _videoPlayer.enabled = true;
             _videoPlayer.Prepare();
         },
             error => AGUIMisc.ShowToast("Cancelled picking video file: " + error), generatePreviewImages);
