@@ -10,6 +10,7 @@ using DeadMosquito.AndroidGoodies.Internal;
 using System.IO;
 using UnityEditor;
 using System.Reflection;
+using Priority_Queue;
 using System;
 #if PLATFORM_ANDROID
 using UnityEngine.Android;
@@ -20,10 +21,14 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 {
     public const string TEST_NEW_ASSETS_MOVIES_DIRECTORY = "TestNewAssetsEdited";
     public const string VID_FILES_TXT = "vidFiles.txt";
-    public const string TRIMMED_SECTION_ONE = "trimmedSectionOne.mov";
-    public const string TRIMMED_SECTION_THREE= "trimmedSectionThree.mov";
-    public const string CONCATENATED_SECTIONS = "concatenatedSections.mp4";
+    public const string TRIMMED_SECTION_ONE_FILENAME = "trimmedSectionOne.mov";
+    public const string TRIMMED_SECTION_THREE_FILENAME = "trimmedSectionThree.mov";
+    public const string CONCATENATED_SECTIONS_FILENAME = "concatenatedSections.mp4";
     public const string WATERMARK_FILENAME = "MASfXWatermark.png";
+    public const string DECODED_ORIGINAL_AUDIO_FILENAME = "Doa.raw";
+    public const string TIME_SCALED_AUDIO_FILENAME = "Tsa.raw";
+    public const string TIME_SCALED_ENCODED_AUDIO_FILENAME = "TsaEncoded.mp3";
+    public const string FINAL_VIDEO_FILENAME = "outputMaybe.mp4";
 
     //media player
     [SerializeField] private VideoPlayer _videoPlayer;
@@ -37,20 +42,31 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     [SerializeField] private GameObject _inputBlocker;
     [SerializeField] private Image _progressBar;
     [SerializeField] private Text _progressText;
-
+    
+    //videoplayer conditionals
     private bool canSlide;
     private bool wasPlaying;
-    private bool paidForApp;
-    private HashSet<string> filesToRemove;
+
+    //track filepaths
+    private HashSet<string> filesToRemove; //remove files from users device after processing
     private string vidDirectoryPath; //path to directory which original vid lives in
     private string vidListPath; //path to new directory which edited video will live in
     private string vidPath; //path to original vid to edit
     private string watermarkPath; //path to directory which watermark lives when processing
-    private delegate void FFmpegTask();
-    private Queue<FFmpegTask> taskQueue;
-    private int taskQueueInitCount; //initial number of commands... could be better
 
-    public static int NumSegments = 11;
+    //ffmpeg commands and results
+    private delegate void FFmpegTask();
+    private SimplePriorityQueue<FFmpegTask> taskPQueue;
+    private Dictionary<string, SegmentInfo> processedGraphDurations; //maps filename to its float value... ehhhhh
+    private float slowestMult;
+    private float progressIncrementer;
+    private bool isProbing; //checks on finish to see if we are probing
+
+    //pay info
+    private bool paidForApp;
+
+    //version 1 slomo resolution
+    public static int NumSegments = 7;
 
     #region Monobehaviors
 
@@ -75,9 +91,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         vidListPath = "";
         vidPath = "";
         watermarkPath = "";
-        
+
         //taskqueue initialization
-        taskQueue = new Queue<FFmpegTask>();
+        taskPQueue = new SimplePriorityQueue<FFmpegTask>();
+        progressIncrementer = 0f;
         filesToRemove = new HashSet<string>();
 
         //payment information
@@ -156,10 +173,9 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     {
         //begins processing the video
         _inputBlocker.SetActive(true);
-        taskQueueInitCount = taskQueue.Count;
-        DebugLog(taskQueueInitCount.ToString());
         _progressBar.fillAmount = 0;
-        taskQueue.Dequeue()();
+        progressIncrementer = 1f/taskPQueue.Count;
+        taskPQueue.Dequeue()();
     }
 
     public void OnChooseVideoClicked()
@@ -218,25 +234,35 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     //progress bar here (parse msg)
     public void OnProgress(string msg)
     {
+        //Debug.Log(msg.Length);
         //Debug.Log(msg);
-        //use below to debug why ffmpeg fails... which happens a lot
-        /*
-        int msg_length = msg.Length;
-        if(msg_length > 1000)
+        if(msg.Length > 1470 && isProbing)
         {
-            int num_loops = msg_length / 1000;
-            for (int i = 0; i < num_loops; i++)
-            {
-                Debug.Log("OnProgress:" + msg.Substring((i*1000),1000));
-            }
-            Debug.Log("OnProgress:" + msg.Substring(num_loops * 1000, msg_length - (num_loops * 1000)));            
-        }
-        else
-        {
-            Debug.Log("OnProgress:" + msg);
-        }
-        */
+            //get filename
+            int fFrom = msg.IndexOf("Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '") + "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from \'".Length;
+            int fTo = msg.IndexOf("\':\n  Metadata:\n") - fFrom;
+            string resultFilename = msg.Substring(fFrom, fTo);
+            Debug.Log("resultFilename=" + resultFilename);
 
+            //get duration val
+            int dFrom = msg.IndexOf("Duration: ") + "Duration: ".Length;
+            string resultDuration = msg.Substring(dFrom, 11);
+            string[] times = resultDuration.Split(':', '.');
+            int hours, minutes, seconds, milliseconds;
+            int.TryParse(times[0], out hours);
+            int.TryParse(times[1], out minutes);
+            int.TryParse(times[2], out seconds);
+            int.TryParse(times[3], out milliseconds);
+            float processedVidTime = 3600f * hours + 60f * minutes + seconds + milliseconds / 100f;
+            Debug.Log("processedVidTime=" + processedVidTime);
+
+            if(processedGraphDurations.ContainsKey(resultFilename))
+            {
+                SegmentInfo segInfo = processedGraphDurations[resultFilename];
+                segInfo.duration = processedVidTime;
+                processedGraphDurations[resultFilename] = segInfo;
+            }
+        }
     }
 
     //Notify user about failure here
@@ -254,18 +280,24 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     //Last callback - do whatever you need next
     public void OnFinish()
     {
-        Debug.Log("OnFinish");
-        if (taskQueue.Count > 0)
+        if(taskPQueue.Count > 0)
         {
-            taskQueue.Dequeue()();
-            _progressBar.fillAmount += 1f / (float)taskQueueInitCount;
+            foreach(string filename in processedGraphDurations.Keys)
+            {
+                if(processedGraphDurations[filename].duration == -1f)
+                {
+                    _progressBar.fillAmount -= progressIncrementer;
+                    taskPQueue.Enqueue(() => probeForVidInfo(filename), 2);
+                }
+            }
+            _progressBar.fillAmount += progressIncrementer;
+            taskPQueue.Dequeue()();
         }
         else
         {
             Debug.Log("queue is empty, removing uneeded files");
-            foreach(string s in filesToRemove)
+            foreach (string s in filesToRemove)
             {
-                Debug.Log("removing file:" + s);
                 if (File.Exists(s))
                 {
                     File.Delete(s);
@@ -274,7 +306,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             }
             Debug.Log("done");
             ResetAll();
-        }      
+        }
+
     }
 
     #endregion
@@ -296,11 +329,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //ffmpeg
         Debug.Log("ffmpeg");
         ClearAllTxt();
-        taskQueue.Clear();
+        //taskQueue.Clear();
         filesToRemove.Clear();
         FFmpegParser.Handler = this;
         _processButton.SetActive(true);
         _playButton.SetActive(true);
+        processedGraphDurations = new Dictionary<string, SegmentInfo>();
+        isProbing = false;
 
         //graph
         Debug.Log("graph");
@@ -441,6 +476,28 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         return (1/slowMult);
     }
 
+    private float ProcessedParabFunc(float h, float k, float a, float x)
+    {
+        //y = a(x-h)^2 + k
+        return 1+(a * ((x - h) * (x - h)) + k);
+    }
+
+
+    private void UpdateProcessedSegments(string s, float slowMult, float durationVal)
+    {
+        SegmentInfo newSegInfo = new SegmentInfo();
+        newSegInfo.slowMult = slowMult;
+        newSegInfo.duration = durationVal;
+        if (!processedGraphDurations.ContainsKey(s))
+        {
+            processedGraphDurations.Add(s, newSegInfo);
+        }
+        else
+        {
+            processedGraphDurations[s] = newSegInfo;
+        }
+    }
+
     private void OnGraphPointArrUpdatedHandler()
     {
         CreateAndEnqueueRampedCommands(_graphManager.GetGraphPointInfoArr());
@@ -449,23 +506,48 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void CreateAndEnqueueRampedCommands(GraphPointInfo[] gpiArr)
     {
         //empty out the task queue
-        taskQueue.Clear();
+        taskPQueue.Clear();
 
-        //trim section 1
-        taskQueue.Enqueue(() => trimSection(gpiArr[0].startTime, gpiArr[1].startTime, TRIMMED_SECTION_ONE, paidForApp));
+        //trim section 1 - priority 1
+        taskPQueue.Enqueue(() => trimSection(gpiArr[0].startTime, gpiArr[1].startTime, TRIMMED_SECTION_ONE_FILENAME, paidForApp), 1);
+        UpdateProcessedSegments(HandleDirectory(TRIMMED_SECTION_ONE_FILENAME), 1f, 0f);
 
-        //slow sections
-        for (int i = 1; i < NumSegments+1; i++)
+        //slow sections - priority 1
+        slowestMult = 1.0f;
+        for (int i = 2; i < (NumSegments*2)+2; i+=2)
         {
             int enqueue_idx = i;
-            taskQueue.Enqueue(() => slowSection(gpiArr[enqueue_idx].startTime, gpiArr[enqueue_idx + 1].startTime-gpiArr[enqueue_idx].startTime, "slowSection"+ enqueue_idx + ".mov", (1f/gpiArr[enqueue_idx].yVal), paidForApp));
+            float pt0 = gpiArr[enqueue_idx].startTime;
+            float pt1 = gpiArr[enqueue_idx+1].startTime;
+            float duration = pt1 - pt0;
+            float slowMult = gpiArr[enqueue_idx].yVal;
+            slowestMult = Mathf.Min(slowestMult, slowMult);
+            taskPQueue.Enqueue(() => slowSection(pt0, duration, "slowSection"+ (enqueue_idx-2) + ".mov", (1f/slowMult), paidForApp), 1);
+            UpdateProcessedSegments(HandleDirectory("slowSection" + (enqueue_idx - 2) + ".mov"), slowMult, 0f);
         }
 
-        //trim section 3
-        taskQueue.Enqueue(() => trimSection(gpiArr[NumSegments+1].startTime, gpiArr[NumSegments+2].startTime-gpiArr[NumSegments+1].startTime, TRIMMED_SECTION_THREE, paidForApp));
+        //trim section 3 - priority 1
+        taskPQueue.Enqueue(() => trimSection(gpiArr[(NumSegments*2)+2].startTime, gpiArr[(NumSegments * 2) + 3].startTime-gpiArr[(NumSegments * 2)+ 2].startTime, TRIMMED_SECTION_THREE_FILENAME, paidForApp), 1);
+        UpdateProcessedSegments(HandleDirectory(TRIMMED_SECTION_THREE_FILENAME), 1f, 0f);
 
-        //concat
-        taskQueue.Enqueue(() => concatenateSections());
+        //concat - priorty 1
+        taskPQueue.Enqueue(() => concatenateSections(), 1);
+
+        //get original audio - priority 1
+        taskPQueue.Enqueue(() => getOriginalAudio(), 1);
+
+        //probe vid final info (processed length) - priority 2 queue em all up 0, dequeue and set to -1
+        foreach(string s in processedGraphDurations.Keys)
+        {
+            //processedGraphDurations[s] = 0f;
+            taskPQueue.Enqueue(() => probeForVidInfo(s), 2);
+        }
+
+        //time scale audio - priority 3
+        taskPQueue.Enqueue(() => timeScaleAudioAndEncode2(), 3);
+
+        //combine it all - priority 4
+        taskPQueue.Enqueue(() => CombineWithStripe(), 4);
     }
 
     /// <summary>
@@ -484,14 +566,14 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         if(hasPaid)
         {
             commands = "-ss&" + startTime + "&-t&" + duration + "&-y&-i&" +
-                _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0];[0:a]aresample=44100[a0]&-map&[v0]&-map&[a0]"
-                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" + HandleDirectory(fileName);
+                _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0]&-map&[v0]"
+                + "&-c:v&libx264&-preset&ultrafast&-crf&17&" + HandleDirectory(fileName);
         }
         else
         {
             commands = "-ss&" + startTime + "&-t&" + duration + "&-y&-i&" +
-                _videoPlayer.url + "&-i&" + watermarkPath + "&-filter_complex&[0:v]setpts=PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0];[0:a]aresample=44100[a0]&-map&[o0]&-map&[a0]"
-                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" + HandleDirectory(fileName);
+                _videoPlayer.url + "&-i&" + watermarkPath + "&-filter_complex&[0:v]setpts=PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0]&-map&[o0]"
+                + "&-c:v&libx264&-preset&ultrafast&-crf&17&" + HandleDirectory(fileName);
         }
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -510,22 +592,21 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     {
         WriteStringToTxtFile(HandleDirectory(fileName));
         _progressText.text = fileName + " at " + startTime + " for " + duration + " at " + slowMult + " speed";
-        float audioMult = CalculateAudioMult(slowMult);
         string commands = "";
         if(hasPaid)
         {
             commands = "-ss&" + startTime + "&-t&" + duration +
                 "&-y&-i&" + _videoPlayer.url +
-                "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
-                "&-map&[v0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
+                "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0]" +
+                "&-map&[v0]&-c:v&libx264&-preset&ultrafast&-crf&17&" +
                 HandleDirectory(fileName);
         }
         else
         {
             commands = "-ss&" + startTime + "&-t&" + duration +
                 "&-y&-i&" + _videoPlayer.url + "&-i&" + watermarkPath +
-                "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0];[0:a]asetrate=44100*" + audioMult + ",aresample=44100[a0]" +
-                "&-map&[o0]&-map&[a0]&-c:v&libx264&-preset&ultrafast&-crf&17&-acodec&pcm_s16le&" +
+                "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0]" +
+                "&-map&[o0]&-c:v&libx264&-preset&ultrafast&-crf&17&" +
                 HandleDirectory(fileName);
         }
         FFmpegCommands.AndDirectInput(commands);
@@ -539,9 +620,201 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         Debug.Log("CONCATENATING SECTIONS");
         Debug.Log(File.ReadAllText(vidListPath));
         _progressText.text = "concat demuxing";
-        string commands = "-f&concat&-safe&0&-y&-i&" + vidListPath + "&-c:v&copy&" + HandleDirectory("concatMuxer.mp4");
+        string commands = "-f&concat&-safe&0&-y&-i&" + vidListPath + "&-c:v&copy&" + HandleDirectory(CONCATENATED_SECTIONS_FILENAME);
+        FFmpegCommands.AndDirectInput(commands);
+    }
+
+    /// <summary>
+    /// extracts raw audio from current video
+    /// </summary>
+    private void getOriginalAudio()
+    {
+        //ffmpeg -i input.flv -f s16le -acodec pcm_s16le output.raw
+        //dont remove original audio file at end for testing
+        //input SETUP ALL PROPERTIES OF OUTPUT output.raw
+        _progressText.text = "extracting original audio";
+        string commands = "-y&-i&" + _videoPlayer.url + "&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-b:a&128k&" + HandleDirectory(DECODED_ORIGINAL_AUDIO_FILENAME);
+        FFmpegCommands.AndDirectInput(commands);
+    }
+
+    private void probeForVidInfo(string vidFilename)
+    {
+        isProbing = true;
+        SegmentInfo segInfo = processedGraphDurations[vidFilename]; //dequeued, set to -1f since it might not call onfailure
+        segInfo.duration = -1f;
+        processedGraphDurations[vidFilename] = segInfo;
+        _progressText.text = "probing all vids for info";
+        string commands = "-i&" + HandleDirectory(vidFilename);
+        FFmpegCommands.AndDirectInput(commands);
+    }
+
+
+    /// <summary>
+    /// Creates black segment audio with custom smoothing when it changes y val
+    /// </summary>
+    private void timeScaleAudioAndEncode2()
+    {
+        isProbing = false;
+        _progressText.text = "time scaling audio and encoding";
+        
+        //making doas
+        byte[] doaBytes = File.ReadAllBytes(HandleDirectory(DECODED_ORIGINAL_AUDIO_FILENAME));
+        int numSamplesPerChannel = (doaBytes.Length / 2) / 2; //doabytes/2 = total samples. total samples/2 = samples per channel
+        Int16[] doaLeft = new Int16[numSamplesPerChannel];
+        Int16[] doaRight = new Int16[numSamplesPerChannel];
+        Debug.Log(numSamplesPerChannel);
+
+        //making doa left and doa right channels
+        int j = 0;
+        for (int i = 0; i < doaBytes.Length; i+=4)
+        {
+            short leftVal = BitConverter.ToInt16(doaBytes, i);
+            short rightVal = BitConverter.ToInt16(doaBytes, i + 2);
+            doaLeft[j] = leftVal;
+            doaRight[j] = rightVal;
+            j++;
+        }
+
+        //populate an array holding information about each PROCESSED segment.
+        //We have to use dictionary since probing requires parsed filenames and any probe command can fail!
+        SegmentInfo[] pSegmentInfoArr = new SegmentInfo[ProjectManager.NumSegments + 2];
+        pSegmentInfoArr[0] = processedGraphDurations[HandleDirectory(TRIMMED_SECTION_ONE_FILENAME)];
+        int sdi = 1;
+        float slomoDuration = 0.0f;
+        for (int i = 2; i < (NumSegments * 2) + 2; i += 2)
+        {
+            string s = HandleDirectory("slowSection" + (i - 2) + ".mov");   //same as enqueue func
+            pSegmentInfoArr[sdi] = processedGraphDurations[s];
+            slomoDuration += processedGraphDurations[s].duration;
+            sdi++;
+        }
+        pSegmentInfoArr[pSegmentInfoArr.Length - 1] = processedGraphDurations[HandleDirectory(TRIMMED_SECTION_THREE_FILENAME)];
+
+        //array populated, debug and setup i value bounds
+        float tsaSingleCoefficient = 0.0f;
+        for (int i = 0; i < pSegmentInfoArr.Length; i++)
+        {
+            Debug.Log("time scale audio parameter duration:slowmult " + i + "=" + pSegmentInfoArr[i].duration + ":" + pSegmentInfoArr[i].slowMult);
+            tsaSingleCoefficient += pSegmentInfoArr[i].duration;
+        }
+        int samplesBeforeKfZero = (int)(pSegmentInfoArr[0].duration * 44100f);
+        int samplesBeforeKfOne = (int)((pSegmentInfoArr[0].duration + slomoDuration)*44100f);
+
+        //making tsas
+        int tsaSingleChannelCount = (int)((tsaSingleCoefficient) * 44100f);
+        Int16[] tsaLeft = new Int16[tsaSingleChannelCount];
+        Int16[] tsaRight = new Int16[tsaSingleChannelCount];
+
+        //obselete actually
+        //float h = segmentDurations[0] / 2;
+        //float k = slowestMult - 1;
+        //float a = (-1 * (slowestMult - 1)) / (h * h);
+
+        //Debug.LogWarning("slowest=" + slowestMult + " h:k:a=" + h + ":" + k + ":" + a);
+        int segIndex = 0; //index into segDurations
+        int currSampleThreshold = (int)(pSegmentInfoArr[segIndex].duration*44100f);
+        int inputTime = 0; //index into doaleft/doaright
+        int iRampVal = 0; //index to track when to start duplicating samples
+        float pval = 0; //current val of parabola
+        int ipval = 0; //curr val of parabola as int
+        float fpval = 0; //curr total val of parab as float
+        float dt = 0;
+        for (int i = 0; i < tsaSingleChannelCount; i++)
+        {
+            if (i > currSampleThreshold)
+            {
+                segIndex = segIndex + 1;
+                if(!(segIndex > pSegmentInfoArr.Length-1))
+                    currSampleThreshold += (int)(pSegmentInfoArr[segIndex].duration * 44100f);
+            }
+            if (i < samplesBeforeKfZero || i > samplesBeforeKfOne)
+            {
+                if (inputTime >= numSamplesPerChannel)
+                {
+                    DebugLog("clipping regular inputTime=" + inputTime + " i=" + i);
+                }
+                else
+                {
+                    tsaLeft[i] = doaLeft[inputTime];
+                    tsaRight[i] = doaRight[inputTime];
+                    inputTime++;
+                    iRampVal = i;
+                }
+            }
+            else
+            {
+                pval = pSegmentInfoArr[segIndex].slowMult;
+                if(pval > 1.0f)
+                {
+                    Debug.Log("clipping cause pval=" + pval);
+                    continue;
+                }
+                else
+                {
+                    fpval += pval;
+                    ipval = (int)fpval;
+                    inputTime = ipval + iRampVal;
+
+                    if (!(inputTime > numSamplesPerChannel-1))
+                    {
+                        tsaLeft[i] = doaLeft[inputTime];
+                        tsaRight[i] = doaRight[inputTime];
+                        dt += 1 / (44100f);
+                    }
+                    else
+                    {
+                        DebugLog("clipping ramped inputTime=" + inputTime + " i=" + i);
+                    }
+                }
+            }
+        }
+
+        //now to write tsa
+        Int16[] tsa = new Int16[tsaSingleChannelCount * 2];
+        j = 0;
+        for (int i = 0; i < tsa.Length; i+=2)
+        {
+            tsa[i] = tsaLeft[j];
+            tsa[i + 1] = tsaRight[j];
+            j++;
+        }
+
+        //turn tsa into byte[]
+        var file = File.Open(HandleDirectory(TIME_SCALED_AUDIO_FILENAME), FileMode.OpenOrCreate);
+        var binary = new BinaryWriter(file);
+        byte[] tsaBytes = new byte[tsa.Length * 2]; //singleChannelCount*2 = total samples * 2 bytes per sample = total bytes
+        j = 0;
+        for (int i = 0; i < tsaBytes.Length; i+=2)
+        {
+            byte[] valbytes = BitConverter.GetBytes(tsa[j]);
+            tsaBytes[i] = valbytes[0];
+            tsaBytes[i + 1] = valbytes[1];
+            j++;
+        }
+        binary.Write(tsaBytes);
+        file.Close();
+
+        //SETUP ALL PROPERTIES OF RAW INPUT input.raw output.mp3
+        string commands = "&-y&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-i&" + HandleDirectory(TIME_SCALED_AUDIO_FILENAME) + "&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME);
+        FFmpegCommands.AndDirectInput(commands);
+    }
+
+    private void CombineWithStripe()
+    {
+        _progressText.text = "Combine With Stripe";
+        //ffmpeg -i input.mkv -filter_complex "[0:v]setpts=0.5*PTS[v];[0:a]atempo=2.0[a]" -map "[v]" -map "[a]" output.mkv
+        //ffmpeg -i video.mp4 -i audio.wav -c:v copy -c:a aac -strict experimental output.mp4
+        //ffmpeg -i input.mp4 -i input.mp3 -c copy -map 0:v:0 -map 1:a:0 output.mp4
+        string commands = "-i&" + HandleDirectory(CONCATENATED_SECTIONS_FILENAME) + "&-i&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME) + "&-c&copy&" +
+            "-map&0:v&-map&1:a&-y&" + HandleDirectory(FINAL_VIDEO_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
 
     #endregion
+}
+
+public struct SegmentInfo
+{
+    public float slowMult;
+    public float duration;
 }

@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace FFmpeg.Demo
 {
@@ -106,9 +107,9 @@ namespace FFmpeg.Demo
 		//You can make custom progress bar here (parse msg)
 		public void OnProgress(string msg)
         {
-            defaultHandler.OnProgress(msg);
-            progressView.OnProgress(msg);
-            Console.Print(msg);
+            //defaultHandler.OnProgress(msg);
+            //progressView.OnProgress(msg);
+            //Console.Print(msg);
         }
 
 		//Notify user about failure here

@@ -36,6 +36,7 @@ public class GraphManager : MonoBehaviour
     private float screenHeight;
     private float finalVidTime;
     private float initialVidTime;
+    private float kfZerokfOneSeconds;
 
     //constant vals
     private static int graphLength = 5;
@@ -133,14 +134,14 @@ public class GraphManager : MonoBehaviour
 
     private void OnKFZeroDraggedHandler(Vector2 p)
     {
-        ProjectManager.DebugLog("p=" + p.ToString());
+        //ProjectManager.DebugLog("p=" + p.ToString());
         updateMainLineRenderer(new Vector3(p.x, p.y, -1f), kfOneObj.GetComponent<RectTransform>().localPosition, false);
         updateGraphPointInfoArr(false);
     }
 
     private void OnKFOneDraggedHandler(Vector2 p)
     {
-        ProjectManager.DebugLog("p=" + p.ToString());
+        //ProjectManager.DebugLog("p=" + p.ToString());
         kfOneInitialPos = kfOneObj.GetComponent<RectTransform>().localPosition;
         handleCurveControlFinalPos(mainLineRenderer.GetPosition(mainLineRenderer.positionCount - 1).x);
         updateMainLineRenderer(kfZeroObj.GetComponent<RectTransform>().localPosition, new Vector3(p.x, p.y, -1f), false);
@@ -161,24 +162,33 @@ public class GraphManager : MonoBehaviour
     //updates mainLineRenderer using new kf positions
     private void updateMainLineRenderer(Vector3 kfZeroPos, Vector3 kfOnePos, bool drawCurve)
     {
-        mainLineRenderer.positionCount = ProjectManager.NumSegments + 3; //total num lines + 1 (segment is a line)
+        mainLineRenderer.positionCount = ProjectManager.NumSegments*2 + 4; //drawing black protocol
         mainLineRenderer.SetPosition(0, new Vector3(graphMinX, graphMinY + graphRangeY, -1f)); //will not change
         mainLineRenderer.SetPosition(1, kfZeroPos);
-        for (int i = 1; i < ProjectManager.NumSegments; i++)
+        float segLengthDelta = (kfOnePos.x - kfZeroPos.x)*(1f/ProjectManager.NumSegments);
+        float segTimeDelta = (finalVidTime-initialVidTime)*(1f / ProjectManager.NumSegments);
+        float segHeight = graphMinY + graphRangeY;
+        for (int i = 0; i < ProjectManager.NumSegments; i++)
         {
-            float currPointX = kfZeroPos.x + ((float)i / ProjectManager.NumSegments) * (kfOnePos.x - kfZeroPos.x);
-            Vector3 currPoint = new Vector3(currPointX, graphMinY + graphRangeY, -1f); //default
+            segHeight = graphMinY + graphRangeY; //default height
+            //calculate height if draw
             if (drawCurve)
             {
-                //y = (x-delta_k)x where delta_k is the seconds which curveController was dragged and x is current timepoint in seconds
-                float currPointXFromRamp = ((float)i / ProjectManager.NumSegments) * (finalVidTime - initialVidTime);
-                float currPointY = 1 + ((currPointXFromRamp - (finalVidTime- initialVidTime)) * currPointXFromRamp);
-                //currPointY is correct audio slow value
-                currPoint = new Vector3(currPointX, graphMinY + currPointY * graphRangeY, -1f);
+                ///y = 1+((x-length)x);
+                float x0 = ((i) * segTimeDelta);
+                float x1 = ((i+1) * segTimeDelta);
+                float xm = ((x0+x1)/2);
+                segHeight = (graphMinY + (1+((xm - (finalVidTime - initialVidTime)) * xm)) * graphRangeY);
             }
-            mainLineRenderer.SetPosition(1 + i, currPoint); //will not change
+            //calculate first position and put into line renderer
+            Vector3 xPosZero = new Vector3(kfZeroPos.x + segLengthDelta * i, segHeight, -1f);
+            mainLineRenderer.SetPosition(2 + (2*i), xPosZero);
+
+            //calculate second position and put into line renderer
+            Vector3 xPosOne = new Vector3(kfZeroPos.x + segLengthDelta * (i + 1), segHeight, -1f);
+            mainLineRenderer.SetPosition(3 + (2*i), xPosOne);
         }
-        mainLineRenderer.SetPosition(ProjectManager.NumSegments + 1, kfOnePos);
+        mainLineRenderer.SetPosition(mainLineRenderer.positionCount-2, kfOnePos);
         float endCurveControl = curveController.GetComponent<RectTransform>().localPosition.x + curveController.GetComponent<RectTransform>().rect.width / 2;
         mainLineRenderer.SetPosition(mainLineRenderer.positionCount - 1, new Vector3(endCurveControl, graphMinY + graphRangeY, -1f));
     }
@@ -263,7 +273,6 @@ public class GraphManager : MonoBehaviour
         initialVidTime = 0;
         finalVidTime = initialVidTime;
         Destroy(scrollGraphObj);
-
     }
 }
 
