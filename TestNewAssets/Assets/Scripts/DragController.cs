@@ -5,6 +5,7 @@ using UnityEngine.UI;
 public class DragController : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     public System.Action<Vector2> OnButtonDragged = null;
+    public System.Action<Vector2> OnEndDragged = null;
 
     public void OnBeginDrag(PointerEventData eventData)
     {
@@ -30,5 +31,8 @@ public class DragController : MonoBehaviour, IBeginDragHandler, IDragHandler, IE
     public void OnEndDrag(PointerEventData eventData)
     {
         //DebugLog("DRAG eventData.position" + eventData.position.ToString() + " mousePosition=" + Input.mousePosition.ToString());
+        RectTransform rt = transform as RectTransform;
+        if (OnEndDragged != null)
+            OnEndDragged(rt.anchoredPosition);
     }
 }

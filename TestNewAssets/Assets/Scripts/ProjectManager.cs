@@ -509,12 +509,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     private void CreateAndEnqueueRampedCommands(GraphSegToFfmpeg[] gpstffArr)
     {
-
-        for (int i = 0; i < gpstffArr.Length; i++)
-        {
-            Debug.Log("ss, d, sM=" + gpstffArr[i].startTime + ":" + gpstffArr[i].duration + ":" + gpstffArr[i].slowMult);
-        }
-
         //empty out the task queue   
         taskPQueue.Clear();
 

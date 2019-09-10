@@ -83,7 +83,6 @@ public class GraphManager : MonoBehaviour
         {
             Debug.Log("shouldnt have gotten here if graph was active");
         }
-
     }
 
     private GameObject generateScrollGraph(float initialVidTime)
@@ -142,7 +141,7 @@ public class GraphManager : MonoBehaviour
     {
         preProcessedDelta = CalculatePreProcessedDelta();
         updateMainLineRenderer(false, 0f);
-        updateGraphSegToFfmpegArr(false);
+        updateGraphSegToFfmpegArr(false, 0f);
     }
 
     private void OnKFOneDraggedHandler(Vector2 p)
@@ -152,18 +151,27 @@ public class GraphManager : MonoBehaviour
         curveControllerInitialPos = curveControllerObj.GetComponent<RectTransform>().localPosition;
         preProcessedDelta = CalculatePreProcessedDelta();
         updateMainLineRenderer(false, 0f);
-        updateGraphSegToFfmpegArr(false);
+        updateGraphSegToFfmpegArr(false, 0f);
     }
 
     private void OnCurveControlDraggedHandler(Vector2 p)
     {
         kfZeroObj.GetComponent<DragController>().enabled = false; //can no longer adjust kfOne, sorry its the rules
         kfOneObj.GetComponent<DragController>().enabled = false; //can no longer adjust kfOne, sorry its the rules
-        float ccInitialFinalDist = ((p.x - curveControllerInitialPos.x)/screenWidth)*initialVidTime;
+
+        //calculate new lengths based on drag
+        float ccInitialFinalDist = ((p.x - curveControllerInitialPos.x)/screenWidth)*initialVidTime; //how much we dragged line in seconds
         updateMainLineRenderer(true, ccInitialFinalDist);
-        updateGraphSegToFfmpegArr(true);
+        updateGraphSegToFfmpegArr(true, ccInitialFinalDist);
+
+        //move objects into position
         kfOneObj.GetComponent<RectTransform>().localPosition = mainLineRenderer.GetPosition(mainLineRenderer.positionCount - 2);
         handleCurveControlObjPos(timeKfOneEnd);
+    }
+
+    private void OnCurveControlEndDraggedHandler(Vector2 p)
+    {
+        curveControllerInitialPos = new Vector3(p.x, p.y, -1f);
     }
 
     //updates mainLineRenderer to draw processed black
@@ -173,11 +181,10 @@ public class GraphManager : MonoBehaviour
         mainLineRenderer.SetPosition(0, new Vector3(graphMinX, graphMinY + graphRangeY, -1f)); //will not change
         mainLineRenderer.SetPosition(1, kfZeroObj.GetComponent<RectTransform>().localPosition);
         float segHeight = graphMinY + graphRangeY;
-        if(ccInitFinalDist > 0)
-            preProcessedDelta = ccInitFinalDist / ProjectManager.NumSegments;
-
-        float parabLength = (preProcessedDelta * ProjectManager.NumSegments); //length in seconds of parabola
-        Debug.Log("ccInitFinalDist=" + ccInitFinalDist + " parablength=" + parabLength);
+        float postProcessedDelta = preProcessedDelta; //postprocesseddelta only updated when curve is dragged
+        if (ccInitFinalDist > 0)
+            postProcessedDelta = ccInitFinalDist + preProcessedDelta;
+        float parabLength = postProcessedDelta * ProjectManager.NumSegments; //length in seconds of parabola
         for (int i = 0; i < ProjectManager.NumSegments; i++)
         {
             segHeight = graphMinY + graphRangeY; //default height
@@ -185,8 +192,8 @@ public class GraphManager : MonoBehaviour
             if (drawCurve)
             {
                 //y = 1+((x-length)x);
-                float x0 = ((i) * preProcessedDelta);
-                float x1 = ((i+1) * preProcessedDelta);
+                float x0 = ((i) * postProcessedDelta);
+                float x1 = ((i+1) * postProcessedDelta);
                 float xm = ((x0+x1)/2f);
                 float slowMult = (parabLength + ((xm - parabLength) * xm))/parabLength;
                 segHeight = (graphMinY + slowMult * graphRangeY);
@@ -204,7 +211,7 @@ public class GraphManager : MonoBehaviour
         mainLineRenderer.SetPosition(mainLineRenderer.positionCount-1, new Vector3(mainLineRenderer.GetPosition(mainLineRenderer.positionCount-2).x + (timeKfOneEnd/initialVidTime)*screenWidth, graphMinY + graphRangeY, -1f));
     }
 
-    private void updateGraphSegToFfmpegArr(bool drawCurve)
+    private void updateGraphSegToFfmpegArr(bool drawCurve, float ccInitFinalDist)
     {
         //first segment = 0
         GraphSegToFfmpegArr[0].startTime = 0;
@@ -212,20 +219,25 @@ public class GraphManager : MonoBehaviour
         GraphSegToFfmpegArr[0].slowMult = 1f;
 
         //slomo segs = 1->NumSegs
-        float parabLength = preProcessedDelta * ProjectManager.NumSegments;
+        float postProcessedDelta = 0.0f;
+        postProcessedDelta = preProcessedDelta;
+        if (ccInitFinalDist > 0)
+            postProcessedDelta = ccInitFinalDist + preProcessedDelta;
+        float parabLength = postProcessedDelta * ProjectManager.NumSegments;
         for (int i = 0; i < ProjectManager.NumSegments; i++)
         {
             GraphSegToFfmpegArr[i + 1].startTime = GraphSegToFfmpegArr[0].duration + preProcessedDelta * i; //init + ppd = cur start time i.e 1s + 0s/.33 of original video
-            GraphSegToFfmpegArr[i + 1].duration = preProcessedDelta;
-            GraphSegToFfmpegArr[i + 1].slowMult = 1f;
+            GraphSegToFfmpegArr[i + 1].duration = preProcessedDelta; //duration based on set time in seconds between keyframes before drag
+            GraphSegToFfmpegArr[i + 1].slowMult = 1f; //slowmult changes based on how far drag is (postProcessedDelta) to compensate for more time
             if(drawCurve)
             {
                 //y = 1+((x-length)x);
-                float x0 = ((i) * preProcessedDelta);
-                float x1 = ((i + 1) * preProcessedDelta);
+                float x0 = ((i) * postProcessedDelta);
+                float x1 = ((i + 1) * postProcessedDelta);
                 float xm = ((x0 + x1) / 2f);
                 float slowMult = (parabLength + ((xm - parabLength) * xm))/parabLength;
-                GraphSegToFfmpegArr[i + 1].slowMult = slowMult; //parab equation of preprocessed (use seg midpoint)
+                GraphSegToFfmpegArr[i + 1].slowMult = slowMult; //same equation as line renderer
+                Debug.Log("update graphsegtoffmpeg slowmult=" + slowMult + " parabLength=" + parabLength + " postProcessedDelta=" + postProcessedDelta);
             }
         }
 
@@ -275,18 +287,19 @@ public class GraphManager : MonoBehaviour
         kfOneObj.GetComponent<RectTransform>().localPosition = new Vector3(graphMinX + .75f * screenWidth, graphMinY + graphRangeY, -1f);
         timeKfOneEnd = initialVidTime - ((kfOneObj.GetComponent<RectTransform>().localPosition.x-graphMinX)/screenWidth)*initialVidTime;
         handleCurveControlObjPos(timeKfOneEnd);
-                curveControllerInitialPos = curveControllerObj.GetComponent<RectTransform>().localPosition;
+        curveControllerInitialPos = curveControllerObj.GetComponent<RectTransform>().localPosition;
         preProcessedDelta = CalculatePreProcessedDelta();
         updateMainLineRenderer(false, 0f);
 
         //init and update graph point information to be used in ffmpeg
         GraphSegToFfmpegArr = new GraphSegToFfmpeg[ProjectManager.NumSegments+2];
-        updateGraphSegToFfmpegArr(false);
+        updateGraphSegToFfmpegArr(false, 0f);
 
         //events called when keyframes updated
         kfZeroObj.GetComponent<DragController>().OnButtonDragged += OnKFZeroDraggedHandler;
         kfOneObj.GetComponent<DragController>().OnButtonDragged += OnKFOneDraggedHandler;
         curveControllerObj.GetComponent<DragController>().OnButtonDragged += OnCurveControlDraggedHandler;
+        curveControllerObj.GetComponent<DragController>().OnEndDragged += OnCurveControlEndDraggedHandler;
     }
 
     public void DestroyScrollGraph()
