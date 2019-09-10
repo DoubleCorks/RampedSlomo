@@ -67,7 +67,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private bool paidForApp;
 
     //version 1 slomo resolution
-    public static int NumSegments = 11;
+    public static int NumSegments = 3;
 
     #region Monobehaviors
 
@@ -655,7 +655,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         segInfo.duration = -1f;
         processedGraphDurations[vidFilename] = segInfo;
         _progressText.text = "probing all vids for info";
-        string commands = "-i&" + HandleDirectory(vidFilename) + "&" + HandleDirectory(vidFilename);
+        string commands = "-i&" + HandleDirectory(vidFilename);
         FFmpegCommands.AndDirectInput(commands);
     }
 
