@@ -272,6 +272,36 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnFailure(string msg)
     {
         Debug.Log("OnFailure");
+        //Debug.Log(msg.Length);
+        if (isPrintingProgress)
+            Debug.Log(msg);
+        if (msg.Length > 1470 && msg.Length < 1600 && isProbing)
+        {
+            //get filename
+            int fFrom = msg.IndexOf("Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '") + "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from \'".Length;
+            int fTo = msg.IndexOf("\':\n  Metadata:\n") - fFrom;
+            string resultFilename = msg.Substring(fFrom, fTo);
+            Debug.Log("resultFilename=" + resultFilename);
+
+            //get duration val
+            int dFrom = msg.IndexOf("Duration: ") + "Duration: ".Length;
+            string resultDuration = msg.Substring(dFrom, 11);
+            string[] times = resultDuration.Split(':', '.');
+            int hours, minutes, seconds, milliseconds;
+            int.TryParse(times[0], out hours);
+            int.TryParse(times[1], out minutes);
+            int.TryParse(times[2], out seconds);
+            int.TryParse(times[3], out milliseconds);
+            float processedVidTime = 3600f * hours + 60f * minutes + seconds + milliseconds / 100f;
+            Debug.Log("processedVidTime=" + processedVidTime);
+
+            if (processedGraphDurations.ContainsKey(resultFilename))
+            {
+                ProcessedSegmentInfo segInfo = processedGraphDurations[resultFilename];
+                segInfo.duration = processedVidTime;
+                processedGraphDurations[resultFilename] = segInfo;
+            }
+        }
     }
 
     //Notify user about success here
@@ -715,7 +745,12 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
         //Debug.LogWarning("slowest=" + slowestMult + " h:k:a=" + h + ":" + k + ":" + a);
         int segIndex = 0; //index into segDurations
+        int midIdx = pSegmentInfoArr.Length / 2;
         int currSampleThreshold = (int)(pSegmentInfoArr[segIndex].duration*44100f);
+        float widthLine = 0;
+        float heightLine = 0f;
+        float m = 0f;
+        float b = 0f;
         int inputTime = 0; //index into doaleft/doaright
         int iRampVal = 0; //index to track when to start duplicating samples
         float pval = 0; //current val of parabola
@@ -728,7 +763,31 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             {
                 segIndex = segIndex + 1;
                 if(!(segIndex > pSegmentInfoArr.Length-1))
+                {
                     currSampleThreshold += (int)(pSegmentInfoArr[segIndex].duration * 44100f);
+                }
+                if(segIndex > 0 && segIndex < pSegmentInfoArr.Length-1)
+                {
+                    if(segIndex < midIdx)
+                    {
+                        widthLine = (pSegmentInfoArr[segIndex].duration);
+                        heightLine = (pSegmentInfoArr[segIndex + 1].slowMult - pSegmentInfoArr[segIndex].slowMult) * 2f;
+                        m = heightLine / widthLine; //needs to be negative
+                        b = (heightLine * -1f) / 2;
+                        dt = 0f;
+                        Debug.Log("widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                    }
+                    else if(segIndex > midIdx)
+                    {
+                        widthLine = (pSegmentInfoArr[segIndex].duration);
+                        heightLine = ((pSegmentInfoArr[segIndex - 1].slowMult - pSegmentInfoArr[segIndex].slowMult) * 2f)*-1f;
+                        m = heightLine / widthLine; //needs to be positive
+                        b = (heightLine * -1f) / 2;
+                        dt = 0f;
+                        Debug.Log("widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                    }
+                }
+
             }
             if (i < samplesBeforeKfZero || i > samplesBeforeKfOne)
             {
@@ -746,18 +805,37 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             }
             else
             {
-                pval = pSegmentInfoArr[segIndex].slowMult;
                 if(pval > 1.0f)
                 {
                     Debug.Log("clipping cause pval=" + pval);
                     continue;
                 }
-                else
+                else if(segIndex == midIdx)
                 {
+                    pval = pSegmentInfoArr[segIndex].slowMult;
+                    //Debug.Log("segIndex = midIdx, pSegmentInfoArr[segIndex].slowMult=" + pval);
                     fpval += pval;
                     ipval = (int)fpval;
                     inputTime = ipval + iRampVal;
-
+                    if (!(inputTime > numSamplesPerChannel - 1))
+                    {
+                        tsaLeft[i] = doaLeft[inputTime];
+                        tsaRight[i] = doaRight[inputTime];
+                    }
+                    else
+                    {
+                        Debug.Log("clipping ramped inputTime=" + inputTime + " i=" + i);
+                    }
+                }
+                else
+                {
+                    float valOnLine = (m * dt + b);
+                    //Debug.Log("m=" + m + " b=" + b + " dt=" + dt);
+                    pval = pSegmentInfoArr[segIndex].slowMult + valOnLine;
+                    //Debug.Log("pSegmentInfoArr[segIndex].slowMult=" + pSegmentInfoArr[segIndex].slowMult + "pval=" + pval);
+                    fpval += pval;
+                    ipval = (int)fpval;
+                    inputTime = ipval + iRampVal;
                     if (!(inputTime > numSamplesPerChannel-1))
                     {
                         tsaLeft[i] = doaLeft[inputTime];
@@ -798,7 +876,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         file.Close();
 
         //SETUP ALL PROPERTIES OF RAW INPUT input.raw output.mp3
-        isPrintingProgress = true;
         string commands = "&-y&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-i&" + HandleDirectory(TIME_SCALED_AUDIO_FILENAME) + "&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -810,7 +887,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //ffmpeg -i video.mp4 -i audio.wav -c:v copy -c:a aac -strict experimental output.mp4
         //ffmpeg -i input.mp4 -i input.mp3 -c copy -map 0:v:0 -map 1:a:0 output.mp4
         string commands = "-i&" + HandleDirectory(CONCATENATED_SECTIONS_FILENAME) + "&-i&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME) + "&-c&copy&" +
-            "-map&0:v&-map&1:a&-y&" + HandleDirectory(FINAL_VIDEO_FILENAME);
+            "-map&0:v&-map&1:a&-y&-shortest&" + HandleDirectory(FINAL_VIDEO_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
 

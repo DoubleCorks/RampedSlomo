@@ -184,7 +184,7 @@ public class GraphManager : MonoBehaviour
         float postProcessedDelta = preProcessedDelta; //postprocesseddelta only updated when curve is dragged
         if (ccInitFinalDist > 0)
             postProcessedDelta = ccInitFinalDist + preProcessedDelta;
-        float parabLength = postProcessedDelta * ProjectManager.NumSegments; //length in seconds of parabola
+        float parabLength = Mathf.Min(postProcessedDelta * ProjectManager.NumSegments,4f); //length in seconds of parabola
         for (int i = 0; i < ProjectManager.NumSegments; i++)
         {
             segHeight = graphMinY + graphRangeY; //default height
@@ -223,7 +223,7 @@ public class GraphManager : MonoBehaviour
         postProcessedDelta = preProcessedDelta;
         if (ccInitFinalDist > 0)
             postProcessedDelta = ccInitFinalDist + preProcessedDelta;
-        float parabLength = postProcessedDelta * ProjectManager.NumSegments;
+        float parabLength = Mathf.Min(postProcessedDelta * ProjectManager.NumSegments, 4f);
         for (int i = 0; i < ProjectManager.NumSegments; i++)
         {
             GraphSegToFfmpegArr[i + 1].startTime = GraphSegToFfmpegArr[0].duration + preProcessedDelta * i; //init + ppd = cur start time i.e 1s + 0s/.33 of original video
@@ -237,7 +237,7 @@ public class GraphManager : MonoBehaviour
                 float xm = ((x0 + x1) / 2f);
                 float slowMult = (parabLength + ((xm - parabLength) * xm))/parabLength;
                 GraphSegToFfmpegArr[i + 1].slowMult = slowMult; //same equation as line renderer
-                Debug.Log("update graphsegtoffmpeg slowmult=" + slowMult + " parabLength=" + parabLength + " postProcessedDelta=" + postProcessedDelta);
+                //Debug.Log("update graphsegtoffmpeg slowmult=" + slowMult + " parabLength=" + parabLength + " postProcessedDelta=" + postProcessedDelta);
             }
         }
 
