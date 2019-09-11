@@ -67,7 +67,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private bool paidForApp;
 
     //version 1 slomo resolution
-    public static int NumSegments = 3;
+    public static int NumSegments = 7;
 
     #region Monobehaviors
 
@@ -805,12 +805,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             }
             else
             {
-                if(pval > 1.0f)
-                {
-                    Debug.Log("clipping cause pval=" + pval);
-                    continue;
-                }
-                else if(segIndex == midIdx)
+                if(segIndex == midIdx)
                 {
                     pval = pSegmentInfoArr[segIndex].slowMult;
                     //Debug.Log("segIndex = midIdx, pSegmentInfoArr[segIndex].slowMult=" + pval);
