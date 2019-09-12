@@ -36,6 +36,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     //ui elements
     [SerializeField] private GameObject _playButton;
     [SerializeField] private GameObject _pauseButton;
+    [SerializeField] private GameObject _initialChooseButton;
+    [SerializeField] private GameObject _hamburgerMenu;
     [SerializeField] private GameObject _processButton;
     [SerializeField] private Slider _videoTrack;
     [SerializeField] private GraphManager _graphManager;
@@ -74,10 +76,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _playButton.SetActive(false);
         _pauseButton.SetActive(false);
         _processButton.SetActive(false);
+        _initialChooseButton.SetActive(true);
         canSlide = false;
         wasPlaying = false;
         _inputBlocker.SetActive(false);
         _videoPlayer.targetTexture.Release();
+        _videoTrack.gameObject.SetActive(false);
+        _hamburgerMenu.SetActive(false);
 
         //vid player callbacks
         _videoPlayer.prepareCompleted += VideoPrepareCompleted;
@@ -183,6 +188,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnChooseVideoClicked()
     {
         Debug.Log("onChooseButtonClicked");
+        if (_hamburgerMenu.activeInHierarchy)
+        {
+            _hamburgerMenu.SetActive(false);
+        }
         //handle file path creations of vidDirectoryPath, vidListPath, vidPath, watermarkpath
 #if UNITY_EDITOR
         FileBrowser.SetFilters(true, new FileBrowser.Filter("Movies", ".mov", ".mp4"));
@@ -191,6 +200,27 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 #elif UNITY_ANDROID && !UNITY_EDITOR
         HandleAndroidPickDialog();
 #endif
+    }
+
+    public void OnResetButtonClicked()
+    {
+        ResetAll();
+        if (_hamburgerMenu.activeInHierarchy)
+        {
+            _hamburgerMenu.SetActive(false);
+        }
+    }
+
+    public void OnHamburgerButtonClicked()
+    {
+        if(_hamburgerMenu.activeInHierarchy)
+        {
+            _hamburgerMenu.SetActive(false);
+        }
+        else
+        {
+            _hamburgerMenu.SetActive(true);
+        }
     }
 
     #endregion
@@ -344,6 +374,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     {
         //thumbnail
         Debug.Log("fake thumbnail");
+        _videoTrack.gameObject.SetActive(true);
         _vp.time = 0;
         _vp.Play();
         _vp.Pause();
@@ -355,6 +386,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         FFmpegParser.Handler = this;
         _processButton.SetActive(true);
         _playButton.SetActive(true);
+        _initialChooseButton.SetActive(false);
 
         //graph
         Debug.Log("graph");
@@ -382,9 +414,22 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         canSlide = false;
         wasPlaying = false;
 
+        //files reset
+        Debug.Log("queue is empty, removing uneeded files");
+        foreach (string s in filesToRemove)
+        {
+            if (File.Exists(s))
+            {
+                File.Delete(s);
+                Debug.Log("File:" + s + " deleted");
+            }
+        }
+        filesToRemove.Clear();
+
         //ui button reset
         _playButton.SetActive(false);
         _pauseButton.SetActive(false);
+        _initialChooseButton.SetActive(true);
         _processButton.SetActive(false);
         _inputBlocker.SetActive(false);
         _videoTrack.value = 0;

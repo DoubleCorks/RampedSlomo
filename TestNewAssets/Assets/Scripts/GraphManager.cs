@@ -267,6 +267,11 @@ public class GraphManager : MonoBehaviour
 
     public void InitializeScrollGraph(float initVidTime)
     {
+        //destroy any other scrollgraphs that may exist
+        GameObject[] sgArr = GameObject.FindGameObjectsWithTag("ScrollGraph");
+        foreach (GameObject sg in sgArr)
+            Destroy(sg);
+
         //make graph visible and children accesible
         _scrollGraphView.SetActive(true);
         _guidesObj.SetActive(true);
@@ -304,13 +309,15 @@ public class GraphManager : MonoBehaviour
 
     public void DestroyScrollGraph()
     {
+        //destroy any and all scrollgraphs that may exist
+        GameObject[] sgArr = GameObject.FindGameObjectsWithTag("ScrollGraph");
+        foreach (GameObject sg in sgArr)
+            Destroy(sg);
+
         //make graph visible and children accesible
         _scrollGraphView.SetActive(false);
         _guidesObj.SetActive(false);
         _placeHolderGraphObj.SetActive(true);
-
-        //generate a scroll graph with scaling and timeline
-        Destroy(scrollGraphObj);
     }
 }
 
