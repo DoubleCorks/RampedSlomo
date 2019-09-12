@@ -96,6 +96,11 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
         //payment information
         paidForApp = false;
+
+        //permissions
+#if UNITY_ANDROID && !UNITY_EDITOR
+        OnRequestPermissions();
+#endif
     }
 
     // Update is called once per frame
@@ -188,19 +193,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 #endif
     }
 
-    /// <summary>
-    /// test button
-    /// </summary>
-    public void OnGetPermissionClick()
-    {
-        /*
-        Debug.Log("OnGetPermissionClick");
-        Permission.RequestUserPermission(Permission.ExternalStorageRead);
-        Permission.RequestUserPermission(Permission.ExternalStorageWrite);
-        */
-        ResetAll();
-    }
-
     #endregion
 
     #region FFMPEG callbacks
@@ -277,6 +269,73 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     #region Private Methods
 
+
+    private void OnRequestPermissions()
+    {
+        // Filter permissions so we don't request already granted permissions,
+        // otherwise if the user denies already granted permission the app will be killed
+        List<string> permList = new List<string>()
+        {
+        AGPermissions.READ_EXTERNAL_STORAGE,
+        AGPermissions.WRITE_EXTERNAL_STORAGE
+        };
+
+        List<string> permNeededList = new List<string>();
+        foreach  (string s in permList)
+        {
+            if (!AGPermissions.IsPermissionGranted(s))
+                permNeededList.Add(s);
+        }
+
+        string[] permissions = permNeededList.ToArray();
+
+        if (permNeededList.Count == 0)
+        {
+            Debug.Log("User already granted all these permissions: " + string.Join(",", permissions));
+            return;
+        }
+
+        // Finally request permissions user has not granted yet and log the results
+        AGPermissions.RequestPermissions(permissions, results =>
+        {
+            bool canRequestAgain = false;
+            // Process results of requested permissions
+            foreach (var result in results)
+            {
+                Debug.Log(string.Format("Permission [{0}] is [{1}], should show explanation?: {2}",
+                    result.Permission, result.Status, result.ShouldShowRequestPermissionRationale));
+                if (result.Status == AGPermissions.PermissionStatus.Denied)
+                {
+                    // User denied permission, now we need to find out if he clicked "Do not show again" checkbox
+                    if (result.ShouldShowRequestPermissionRationale)
+                    {
+                        // User just denied permission, we can show explanation here and request permissions again
+                        // or send user to settings to do so
+                        canRequestAgain = true;
+                    }
+                    else
+                    {
+                        // User checked "Do not show again" checkbox or permission can't be granted.
+                        // We should continue with this permission denied
+                        canRequestAgain = false;
+                    }
+                }
+            }
+
+            if(canRequestAgain)
+            {
+                AGAlertDialog.ShowMessageDialog("Something to note", "Ramped Slomo needs rw file access to edit and save videos", "Gotcha",
+                    () => OnRequestPermissions());
+            }
+            else
+            {
+                AGAlertDialog.ShowMessageDialog("Something to note", "Ramped Slomo needs rw file access to edit and save videos. To" +
+                    " allow for this, go to settings -> apps and notifications -> find Ramped Slomo -> Permisisons -> toggle storage", "Gotcha",
+                    () => AGUIMisc.ShowToast("Showed checkbox permisison can't be granted"));
+            }
+        });
+    }
+
     /// <summary>
     /// On Video Prepare Completed
     /// </summary>
@@ -332,7 +391,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
         //graph destruction
         _graphManager.DestroyScrollGraph();
-
     }
 
     /// <summary>
