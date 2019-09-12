@@ -28,7 +28,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public const string DECODED_ORIGINAL_AUDIO_FILENAME = "Doa.raw";
     public const string TIME_SCALED_AUDIO_FILENAME = "Tsa.raw";
     public const string TIME_SCALED_ENCODED_AUDIO_FILENAME = "TsaEncoded.mp3";
-    public const string FINAL_VIDEO_FILENAME = "outputMaybe.mp4";
+    public const string FINAL_VIDEO_FILENAME = "rampedSlomo";
 
     //media player
     [SerializeField] private VideoPlayer _videoPlayer;
@@ -57,11 +57,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     //ffmpeg commands and results
     private delegate void FFmpegTask();
     private SimplePriorityQueue<FFmpegTask> taskPQueue;
-    private Dictionary<string, ProcessedSegmentInfo> processedGraphDurations; //maps filename to its float value... ehhhhh
-    private float slowestMult;
     private float progressIncrementer;
-    private bool isProbing; //checks on finish to see if we are probing
-    private bool isPrintingProgress;
 
     //pay info
     private bool paidForApp;
@@ -97,7 +93,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         taskPQueue = new SimplePriorityQueue<FFmpegTask>();
         progressIncrementer = 0f;
         filesToRemove = new HashSet<string>();
-        isPrintingProgress = false;
 
         //payment information
         paidForApp = false;
@@ -206,21 +201,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         ResetAll();
     }
 
-    // TODO: MOVE THIS TO A COMMON CLASS AND MAKE IT public static   
-    public static void DebugLog(string message)
-    {
-        try
-        {
-            MethodBase caller = new System.Diagnostics.StackFrame(1).GetMethod();
-            long unixTime = ((DateTimeOffset)DateTime.Now).ToUnixTimeSeconds();
-            UnityEngine.Debug.Log("_" + caller.DeclaringType + "." + caller.Name + "@" + unixTime + ": " + message);
-        }
-        catch (Exception e)
-        {
-            Debug.Log("DebugLog e=" + e.ToString() + " message=" + message);
-        }
-    }
-
     #endregion
 
     #region FFMPEG callbacks
@@ -237,71 +217,29 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnProgress(string msg)
     {
         //Debug.Log(msg.Length);
-        if(isPrintingProgress)
-            Debug.Log(msg);
-        if(msg.Length > 1470 && msg.Length < 1600 && isProbing)
-        {
-            //get filename
-            int fFrom = msg.IndexOf("Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '") + "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from \'".Length;
-            int fTo = msg.IndexOf("\':\n  Metadata:\n") - fFrom;
-            string resultFilename = msg.Substring(fFrom, fTo);
-            Debug.Log("resultFilename=" + resultFilename);
-
-            //get duration val
-            int dFrom = msg.IndexOf("Duration: ") + "Duration: ".Length;
-            string resultDuration = msg.Substring(dFrom, 11);
-            string[] times = resultDuration.Split(':', '.');
-            int hours, minutes, seconds, milliseconds;
-            int.TryParse(times[0], out hours);
-            int.TryParse(times[1], out minutes);
-            int.TryParse(times[2], out seconds);
-            int.TryParse(times[3], out milliseconds);
-            float processedVidTime = 3600f * hours + 60f * minutes + seconds + milliseconds / 100f;
-            Debug.Log("processedVidTime=" + processedVidTime);
-
-            if(processedGraphDurations.ContainsKey(resultFilename))
-            {
-                ProcessedSegmentInfo segInfo = processedGraphDurations[resultFilename];
-                segInfo.duration = processedVidTime;
-                processedGraphDurations[resultFilename] = segInfo;
-            }
-        }
     }
 
     //Notify user about failure here
     public void OnFailure(string msg)
     {
         Debug.Log("OnFailure");
-        //Debug.Log(msg.Length);
-        if (isPrintingProgress)
-            Debug.Log(msg);
-        if (msg.Length > 1470 && msg.Length < 1600 && isProbing)
+        /*
+        int msg_length = msg.Length;
+        if (msg_length > 1000)
         {
-            //get filename
-            int fFrom = msg.IndexOf("Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '") + "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from \'".Length;
-            int fTo = msg.IndexOf("\':\n  Metadata:\n") - fFrom;
-            string resultFilename = msg.Substring(fFrom, fTo);
-            Debug.Log("resultFilename=" + resultFilename);
-
-            //get duration val
-            int dFrom = msg.IndexOf("Duration: ") + "Duration: ".Length;
-            string resultDuration = msg.Substring(dFrom, 11);
-            string[] times = resultDuration.Split(':', '.');
-            int hours, minutes, seconds, milliseconds;
-            int.TryParse(times[0], out hours);
-            int.TryParse(times[1], out minutes);
-            int.TryParse(times[2], out seconds);
-            int.TryParse(times[3], out milliseconds);
-            float processedVidTime = 3600f * hours + 60f * minutes + seconds + milliseconds / 100f;
-            Debug.Log("processedVidTime=" + processedVidTime);
-
-            if (processedGraphDurations.ContainsKey(resultFilename))
+            int num_loops = msg_length / 1000;
+            for (int i = 0; i < num_loops; i++)
             {
-                ProcessedSegmentInfo segInfo = processedGraphDurations[resultFilename];
-                segInfo.duration = processedVidTime;
-                processedGraphDurations[resultFilename] = segInfo;
+                Debug.Log("OnFailure:" + msg.Substring((i * 1000), 1000));
             }
+            Debug.Log("OnFailure:" + msg.Substring(num_loops * 1000, msg_length - (num_loops * 1000)));
         }
+        else
+        {
+            Debug.Log("OnFailure:" + msg);
+        }
+        */
+        //Debug.Log(msg.Length);
     }
 
     //Notify user about success here
@@ -316,14 +254,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         Debug.Log("OnFinish");
         if (taskPQueue.Count > 0)
         {
-            foreach(string filename in processedGraphDurations.Keys)
-            {
-                if(processedGraphDurations[filename].duration == -1f)
-                {
-                    _progressBar.fillAmount -= progressIncrementer;
-                    taskPQueue.Enqueue(() => probeForVidInfo(filename), 2);
-                }
-            }
             _progressBar.fillAmount += progressIncrementer;
             taskPQueue.Dequeue()();
         }
@@ -341,7 +271,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             Debug.Log("done");
             ResetAll();
         }
-
     }
 
     #endregion
@@ -363,17 +292,22 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //ffmpeg
         Debug.Log("ffmpeg");
         ClearAllTxt();
-        //taskQueue.Clear();
         filesToRemove.Clear();
         FFmpegParser.Handler = this;
         _processButton.SetActive(true);
         _playButton.SetActive(true);
-        processedGraphDurations = new Dictionary<string, ProcessedSegmentInfo>();
-        isProbing = false;
 
         //graph
         Debug.Log("graph");
         _graphManager.InitializeScrollGraph((float)_vp.length);
+
+        //clean up added files
+        filesToRemove.Add(watermarkPath);
+        filesToRemove.Add(vidListPath);
+        filesToRemove.Add(HandleDirectory(TIME_SCALED_AUDIO_FILENAME));
+        filesToRemove.Add(HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME));
+        filesToRemove.Add(HandleDirectory(CONCATENATED_SECTIONS_FILENAME));
+        filesToRemove.Add(HandleDirectory(DECODED_ORIGINAL_AUDIO_FILENAME));
     }
 
     /// <summary>
@@ -510,28 +444,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         return (1/slowMult);
     }
 
-    private float ProcessedParabFunc(float h, float k, float a, float x)
-    {
-        //y = a(x-h)^2 + k
-        return 1+(a * ((x - h) * (x - h)) + k);
-    }
-
-
-    private void UpdateProcessedSegments(string s, float slowMult, float durationVal)
-    {
-        ProcessedSegmentInfo newSegInfo = new ProcessedSegmentInfo();
-        newSegInfo.slowMult = slowMult;
-        newSegInfo.duration = durationVal;
-        if (!processedGraphDurations.ContainsKey(HandleDirectory(s)))
-        {
-            processedGraphDurations.Add(HandleDirectory(s), newSegInfo);
-        }
-        else
-        {
-            processedGraphDurations[HandleDirectory(s)] = newSegInfo;
-        }
-    }
-
     private void OnGraphSegToFfmpegArrUpdatedHandler()
     {
         CreateAndEnqueueRampedCommands(_graphManager.GetSegToFfmpegData());
@@ -544,10 +456,9 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
         //trim section 1 - priority 1
         taskPQueue.Enqueue(() => trimSection(gpstffArr[0].startTime, gpstffArr[0].duration, TRIMMED_SECTION_ONE_FILENAME, paidForApp), 1);
-        UpdateProcessedSegments(TRIMMED_SECTION_ONE_FILENAME, 1f, 0f);
+        //Debug.Log("approximated processed duration for " + TRIMMED_SECTION_THREE_FILENAME + " is =" + gpstffArr[0].duration);
 
         //slow sections - priority 1
-        slowestMult = 1.0f;
         for (int i = 0; i < NumSegments; i++)
         {
             int e_idx = i;
@@ -555,14 +466,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             float d = gpstffArr[e_idx + 1].duration;
             float sM = gpstffArr[e_idx + 1].slowMult;
             string fName = "slowSection" + e_idx + ".mov";
-            slowestMult = Mathf.Min(slowestMult, sM);
             taskPQueue.Enqueue(() => slowSection(ss, d, fName, 1f/sM, paidForApp), 1);
-            UpdateProcessedSegments(fName, sM, 0f);
+            //Debug.Log("approximated processed duration for " + fName +" is =" + nextMultipleOf60ths);
         }
 
         //trim section 3 - priority 1
         taskPQueue.Enqueue(() => trimSection(gpstffArr[NumSegments+1].startTime, gpstffArr[NumSegments+1].duration, TRIMMED_SECTION_THREE_FILENAME, paidForApp), 1);
-        UpdateProcessedSegments(TRIMMED_SECTION_THREE_FILENAME, 1f, 0f);
+        //Debug.Log("approximated processed duration for " + TRIMMED_SECTION_THREE_FILENAME + " is =" + gpstffArr[NumSegments + 1].duration);
 
         //concat - priorty 1
         taskPQueue.Enqueue(() => concatenateSections(), 1);
@@ -570,19 +480,11 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //get original audio - priority 1
         taskPQueue.Enqueue(() => getOriginalAudio(), 1);
 
-        //probe vid final info (processed length) - priority 2 queue em all up 0, dequeue and set to -1
-        foreach(string s in processedGraphDurations.Keys)
-        {
-            //processedGraphDurations[s] = 0f;
-            taskPQueue.Enqueue(() => probeForVidInfo(s), 2);
-        }
-
         //time scale audio - priority 3
-        taskPQueue.Enqueue(() => timeScaleAudioAndEncode(), 3);
+        taskPQueue.Enqueue(() => timeScaleAudioAndEncode(gpstffArr), 3);
 
         //combine it all - priority 4
-        taskPQueue.Enqueue(() => CombineWithStripe(), 4);
-        
+        taskPQueue.Enqueue(() => CombineWithStripe(), 4);   
     }
 
     /// <summary>
@@ -672,27 +574,20 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         FFmpegCommands.AndDirectInput(commands);
     }
 
-    private void probeForVidInfo(string vidFilename)
-    {
-        isProbing = true;
-        ProcessedSegmentInfo segInfo = processedGraphDurations[vidFilename]; //dequeued, set to -1f since it might not call onfailure
-        segInfo.duration = -1f;
-        processedGraphDurations[vidFilename] = segInfo;
-        _progressText.text = "probing all vids for info";
-        string commands = "-i&" + HandleDirectory(vidFilename);
-        FFmpegCommands.AndDirectInput(commands);
-    }
-
-
     /// <summary>
     /// Creates black segment audio with custom smoothing when it changes y val
     /// </summary>
-    private void timeScaleAudioAndEncode()
+    private void timeScaleAudioAndEncode(GraphSegToFfmpeg[] gpstffArr)
     {
-        isProbing = false;
         _progressText.text = "time scaling audio and encoding";
+
+        //delete tsa.raw since it might exist? seems bad
+        if (File.Exists(HandleDirectory(TIME_SCALED_AUDIO_FILENAME)))
+        {
+            File.Delete(HandleDirectory(TIME_SCALED_AUDIO_FILENAME));
+        }
         
-        //making doas
+        //making doas -doa.raw is overwritten every time so its okay
         byte[] doaBytes = File.ReadAllBytes(HandleDirectory(DECODED_ORIGINAL_AUDIO_FILENAME));
         int numSamplesPerChannel = (doaBytes.Length / 2) / 2; //doabytes/2 = total samples. total samples/2 = samples per channel
         Int16[] doaLeft = new Int16[numSamplesPerChannel];
@@ -710,43 +605,36 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             j++;
         }
 
-        //populate an array holding information about each PROCESSED segment. (only need slowMult and duration)
-        //We have to use dictionary since probing requires parsed filenames and any probe command can fail!
-        ProcessedSegmentInfo[] pSegmentInfoArr = new ProcessedSegmentInfo[ProjectManager.NumSegments + 2];
-        pSegmentInfoArr[0] = processedGraphDurations[HandleDirectory(TRIMMED_SECTION_ONE_FILENAME)];
-        float slomoDuration = 0.0f;
-        for (int i = 0; i < NumSegments; i ++)
-        {
-            string fName = "slowSection" + i + ".mov";
-            pSegmentInfoArr[i+1] = processedGraphDurations[HandleDirectory(fName)];
-            slomoDuration += processedGraphDurations[HandleDirectory(fName)].duration;
-        }
-        pSegmentInfoArr[pSegmentInfoArr.Length - 1] = processedGraphDurations[HandleDirectory(TRIMMED_SECTION_THREE_FILENAME)];
+        //make arguments for tsas
+        float[] processedDurations = new float[gpstffArr.Length]; //actual approx duration of each segment in seconds
 
-        //array populated, debug and setup i value bounds
-        float tsaSingleCoefficient = 0.0f;
-        for (int i = 0; i < pSegmentInfoArr.Length; i++)
+        //calculate all processedDurations
+        float slomoDuration = 0.0f;
+        for (int i = 0; i < gpstffArr.Length; i++)
         {
-            Debug.Log("time scale audio parameter duration:slowmult " + i + "=" + pSegmentInfoArr[i].duration + ":" + pSegmentInfoArr[i].slowMult);
-            tsaSingleCoefficient += pSegmentInfoArr[i].duration;
+            float ds = gpstffArr[i].duration * (1f / gpstffArr[i].slowMult); //approx duration of processed segment in seconds
+            float nextMultipleOf60ths = (int)((ds * 60f) + 1) / 60f; //actual duration??
+            processedDurations[i] = nextMultipleOf60ths;
+            //Debug.Log("processedDuration " + i + " ="+nextMultipleOf60ths);
+            if(i > 0 && i < gpstffArr.Length-1)
+                slomoDuration += nextMultipleOf60ths;
         }
-        int samplesBeforeKfZero = (int)(pSegmentInfoArr[0].duration * 44100f);
-        int samplesBeforeKfOne = (int)((pSegmentInfoArr[0].duration + slomoDuration)*44100f);
+
+        //arguments
+        //Debug.Log("trimsectionone duration = " + processedDurations[0]);
+        //Debug.Log("slomoduration = " + slomoDuration);
+        //Debug.Log("trimsectionthree duration = " + processedDurations[processedDurations.Length-1]);
+        int allSamplesBeforeKfZero = (int)(processedDurations[0] * 44100f);
+        int allSamplesBeforeKfOne = (int)((processedDurations[0] + slomoDuration)*44100f);
+        int allSamples = (int)((processedDurations[0] + slomoDuration + processedDurations[processedDurations.Length-1]) * 44100f);
 
         //making tsas
-        int tsaSingleChannelCount = (int)((tsaSingleCoefficient) * 44100f);
-        Int16[] tsaLeft = new Int16[tsaSingleChannelCount];
-        Int16[] tsaRight = new Int16[tsaSingleChannelCount];
+        Int16[] tsaLeft = new Int16[allSamples];
+        Int16[] tsaRight = new Int16[allSamples];
 
-        //obselete actually
-        //float h = segmentDurations[0] / 2;
-        //float k = slowestMult - 1;
-        //float a = (-1 * (slowestMult - 1)) / (h * h);
-
-        //Debug.LogWarning("slowest=" + slowestMult + " h:k:a=" + h + ":" + k + ":" + a);
         int segIndex = 0; //index into segDurations
-        int midIdx = pSegmentInfoArr.Length / 2;
-        int currSampleThreshold = (int)(pSegmentInfoArr[segIndex].duration*44100f);
+        int midIdx = gpstffArr.Length / 2;
+        int currSampleThreshold = (int)(processedDurations[0]*44100f);
         float widthLine = 0;
         float heightLine = 0f;
         float m = 0f;
@@ -757,43 +645,47 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         int ipval = 0; //curr val of parabola as int
         float fpval = 0; //curr total val of parab as float
         float dt = 0;
-        for (int i = 0; i < tsaSingleChannelCount; i++)
+        for (int i = 0; i < allSamples; i++)
         {
+            //if the threshold needs to change
             if (i > currSampleThreshold)
             {
                 segIndex = segIndex + 1;
-                if(!(segIndex > pSegmentInfoArr.Length-1))
+                if(segIndex < processedDurations.Length)
                 {
-                    currSampleThreshold += (int)(pSegmentInfoArr[segIndex].duration * 44100f);
+                    currSampleThreshold += (int)(processedDurations[segIndex] * 44100f);
+                    //Debug.Log("i=" + i + " currSampleThreshold=" + currSampleThreshold + " segIndex=" + segIndex + " gpstffArr.Length= " + gpstffArr.Length);
                 }
-                if(segIndex > 0 && segIndex < pSegmentInfoArr.Length-1)
+                if(segIndex > 0 && segIndex < processedDurations.Length-1)
                 {
+                    //in slomo section
                     if(segIndex < midIdx)
                     {
-                        widthLine = (pSegmentInfoArr[segIndex].duration);
-                        heightLine = (pSegmentInfoArr[segIndex + 1].slowMult - pSegmentInfoArr[segIndex].slowMult) * 2f;
+                        widthLine = processedDurations[segIndex];
+                        heightLine = (gpstffArr[segIndex + 1].slowMult - gpstffArr[segIndex].slowMult) * 2f;
                         m = heightLine / widthLine; //needs to be negative
                         b = (heightLine * -1f) / 2;
                         dt = 0f;
-                        Debug.Log("widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                        //Debug.Log("segIdx is less widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
                     else if(segIndex > midIdx)
                     {
-                        widthLine = (pSegmentInfoArr[segIndex].duration);
-                        heightLine = ((pSegmentInfoArr[segIndex - 1].slowMult - pSegmentInfoArr[segIndex].slowMult) * 2f)*-1f;
+                        widthLine = processedDurations[segIndex];
+                        heightLine = -1f*((gpstffArr[segIndex - 1].slowMult - gpstffArr[segIndex].slowMult) * 2f);
                         m = heightLine / widthLine; //needs to be positive
                         b = (heightLine * -1f) / 2;
                         dt = 0f;
-                        Debug.Log("widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                        //Debug.Log("segIdx is greater widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
                 }
 
             }
-            if (i < samplesBeforeKfZero || i > samplesBeforeKfOne)
+            //one to one array copy
+            if (i < allSamplesBeforeKfZero || i > allSamplesBeforeKfOne)
             {
                 if (inputTime >= numSamplesPerChannel)
                 {
-                    Debug.Log("clipping regular inputTime=" + inputTime + " i=" + i);
+                    //Debug.Log("clipping regular inputTime=" + inputTime + " i=" + i);
                 }
                 else
                 {
@@ -807,46 +699,32 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             {
                 if(segIndex == midIdx)
                 {
-                    pval = pSegmentInfoArr[segIndex].slowMult;
+                    pval = gpstffArr[segIndex].slowMult;
                     //Debug.Log("segIndex = midIdx, pSegmentInfoArr[segIndex].slowMult=" + pval);
                     fpval += pval;
                     ipval = (int)fpval;
                     inputTime = ipval + iRampVal;
-                    if (!(inputTime > numSamplesPerChannel - 1))
-                    {
-                        tsaLeft[i] = doaLeft[inputTime];
-                        tsaRight[i] = doaRight[inputTime];
-                    }
-                    else
-                    {
-                        Debug.Log("clipping ramped inputTime=" + inputTime + " i=" + i);
-                    }
+                    tsaLeft[i] = doaLeft[inputTime];
+                    tsaRight[i] = doaRight[inputTime];
                 }
                 else
                 {
                     float valOnLine = (m * dt + b);
                     //Debug.Log("m=" + m + " b=" + b + " dt=" + dt);
-                    pval = pSegmentInfoArr[segIndex].slowMult + valOnLine;
-                    //Debug.Log("pSegmentInfoArr[segIndex].slowMult=" + pSegmentInfoArr[segIndex].slowMult + "pval=" + pval);
+                    pval = gpstffArr[segIndex].slowMult + valOnLine;
+                    //Debug.Log("segIndex = " + segIndex +", pval=" + pval);
                     fpval += pval;
                     ipval = (int)fpval;
                     inputTime = ipval + iRampVal;
-                    if (!(inputTime > numSamplesPerChannel-1))
-                    {
-                        tsaLeft[i] = doaLeft[inputTime];
-                        tsaRight[i] = doaRight[inputTime];
-                        dt += 1 / (44100f);
-                    }
-                    else
-                    {
-                        Debug.Log("clipping ramped inputTime=" + inputTime + " i=" + i);
-                    }
+                    tsaLeft[i] = doaLeft[inputTime];
+                    tsaRight[i] = doaRight[inputTime];
+                    dt += 1 / (44100f);
                 }
             }
         }
 
         //now to write tsa
-        Int16[] tsa = new Int16[tsaSingleChannelCount * 2];
+        Int16[] tsa = new Int16[allSamples * 2];
         j = 0;
         for (int i = 0; i < tsa.Length; i+=2)
         {
@@ -871,7 +749,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         file.Close();
 
         //SETUP ALL PROPERTIES OF RAW INPUT input.raw output.mp3
-        string commands = "&-y&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-i&" + HandleDirectory(TIME_SCALED_AUDIO_FILENAME) + "&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME);
+        string commands = "-y&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-i&" + HandleDirectory(TIME_SCALED_AUDIO_FILENAME) + "&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -881,16 +759,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //ffmpeg -i input.mkv -filter_complex "[0:v]setpts=0.5*PTS[v];[0:a]atempo=2.0[a]" -map "[v]" -map "[a]" output.mkv
         //ffmpeg -i video.mp4 -i audio.wav -c:v copy -c:a aac -strict experimental output.mp4
         //ffmpeg -i input.mp4 -i input.mp3 -c copy -map 0:v:0 -map 1:a:0 output.mp4
+        string outputString = FINAL_VIDEO_FILENAME + DateTime.Now.ToString("MMddyyyyHHmmss") + ".mp4";
         string commands = "-i&" + HandleDirectory(CONCATENATED_SECTIONS_FILENAME) + "&-i&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME) + "&-c&copy&" +
-            "-map&0:v&-map&1:a&-y&-shortest&" + HandleDirectory(FINAL_VIDEO_FILENAME);
+            "-map&0:v&-map&1:a&-y&-shortest&" + HandleDirectory(outputString);
         FFmpegCommands.AndDirectInput(commands);
     }
-
     #endregion
-}
-
-public struct ProcessedSegmentInfo
-{
-    public float slowMult;
-    public float duration;
 }
