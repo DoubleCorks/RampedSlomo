@@ -19,7 +19,7 @@ using SimpleFileBrowser;
 
 public class ProjectManager : MonoBehaviour, IFFmpegHandler
 {
-    public const string TEST_NEW_ASSETS_MOVIES_DIRECTORY = "TestNewAssetsEdited";
+    public const string RAMPED_SLOMO_MOVIES_DIRECTORY = "RampedSlomoEdited";
     public const string VID_FILES_TXT = "vidFiles.txt";
     public const string TRIMMED_SECTION_ONE_FILENAME = "trimmedSectionOne.mov";
     public const string TRIMMED_SECTION_THREE_FILENAME = "trimmedSectionThree.mov";
@@ -328,7 +328,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         // Finally request permissions user has not granted yet and log the results
         AGPermissions.RequestPermissions(permissions, results =>
         {
-            bool canRequestAgain = false;
+            int requestProtocol = 0;
             // Process results of requested permissions
             foreach (var result in results)
             {
@@ -341,23 +341,23 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                     {
                         // User just denied permission, we can show explanation here and request permissions again
                         // or send user to settings to do so
-                        canRequestAgain = true;
+                        requestProtocol = 1;
                     }
                     else
                     {
                         // User checked "Do not show again" checkbox or permission can't be granted.
                         // We should continue with this permission denied
-                        canRequestAgain = false;
+                        requestProtocol = 2;
                     }
                 }
             }
 
-            if(canRequestAgain)
+            if(requestProtocol == 1)
             {
                 AGAlertDialog.ShowMessageDialog("Something to note", "Ramped Slomo needs rw file access to edit and save videos", "Gotcha",
                     () => OnRequestPermissions());
             }
-            else
+            else if(requestProtocol == 2)
             {
                 AGAlertDialog.ShowMessageDialog("Something to note", "Ramped Slomo needs rw file access to edit and save videos. To" +
                     " allow for this, go to settings -> apps and notifications -> find Ramped Slomo -> Permisisons -> toggle storage", "Gotcha",
@@ -452,7 +452,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         {
             //filepath setup
             vidPath = FileBrowser.Result;
-            vidDirectoryPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), TEST_NEW_ASSETS_MOVIES_DIRECTORY);
+            vidDirectoryPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), RAMPED_SLOMO_MOVIES_DIRECTORY);
             Directory.CreateDirectory(vidDirectoryPath);
             vidListPath = System.IO.Path.Combine(vidDirectoryPath, VID_FILES_TXT);
             watermarkPath = System.IO.Path.Combine(vidDirectoryPath, WATERMARK_FILENAME);
@@ -486,7 +486,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             //filepath setup
             string msg = "Video file was picked: " + videoFile;
             vidPath = videoFile.OriginalPath;
-            vidDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, TEST_NEW_ASSETS_MOVIES_DIRECTORY);
+            vidDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, RAMPED_SLOMO_MOVIES_DIRECTORY);
             Directory.CreateDirectory(vidDirectoryPath);
             vidListPath = System.IO.Path.Combine(vidDirectoryPath, VID_FILES_TXT);
             watermarkPath = System.IO.Path.Combine(vidDirectoryPath, WATERMARK_FILENAME);
@@ -865,7 +865,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //ffmpeg -i input.mp4 -i input.mp3 -c copy -map 0:v:0 -map 1:a:0 output.mp4
         string outputString = FINAL_VIDEO_FILENAME + DateTime.Now.ToString("MMddyyyyHHmmss") + ".mp4";
         string commands = "-i&" + HandleDirectory(CONCATENATED_SECTIONS_FILENAME) + "&-i&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME) + "&-c&copy&" +
-            "-map&0:v&-map&1:a&-y&-shortest&" + HandleDirectory(outputString);
+            "-map&0:v&-map&1:a&-shortest&" + HandleDirectory(outputString);
         FFmpegCommands.AndDirectInput(commands);
     }
     #endregion
