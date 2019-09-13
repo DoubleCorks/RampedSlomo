@@ -601,7 +601,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void trimSection(float startTime, float duration, string fileName, bool hasPaid)
     {
         WriteStringToTxtFile(HandleDirectory(fileName));
-        _progressText.text = "trimSection";
+        _progressText.text = "Ramp Slomoing";
         string commands = "";
         if(hasPaid)
         {
@@ -631,7 +631,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void slowSection(float startTime, float duration, string fileName, float slowMult, bool hasPaid)
     {
         WriteStringToTxtFile(HandleDirectory(fileName));
-        _progressText.text = fileName + " at " + startTime + " for " + duration + " at " + slowMult + " speed";
+        //_progressText.text = fileName + " at " + startTime + " for " + duration + " at " + slowMult + " speed";
+        _progressText.text = "Ramp Slomoing";
         string commands = "";
         if(hasPaid)
         {
@@ -682,7 +683,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// </summary>
     private void timeScaleAudioAndEncode(GraphSegToFfmpeg[] gpstffArr)
     {
-        _progressText.text = "time scaling audio and encoding";
+        _progressText.text = "time scale audio and encoding";
 
         //delete tsa.raw since it might exist? seems bad
         if (File.Exists(HandleDirectory(TIME_SCALED_AUDIO_FILENAME)))
@@ -858,7 +859,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     private void CombineWithStripe()
     {
-        _progressText.text = "Combine With Stripe";
+        _progressText.text = "Finishing up!";
         //ffmpeg -i input.mkv -filter_complex "[0:v]setpts=0.5*PTS[v];[0:a]atempo=2.0[a]" -map "[v]" -map "[a]" output.mkv
         //ffmpeg -i video.mp4 -i audio.wav -c:v copy -c:a aac -strict experimental output.mp4
         //ffmpeg -i input.mp4 -i input.mp3 -c copy -map 0:v:0 -map 1:a:0 output.mp4
