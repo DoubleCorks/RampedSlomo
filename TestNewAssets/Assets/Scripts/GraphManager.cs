@@ -34,6 +34,7 @@ public class GraphManager : MonoBehaviour
     private float graphRangeX;
     private float screenWidth;
     private float screenHeight;
+    private float kfWidth;
     private float initialVidTime; //time of initial video in seconds
     private float timeKfOneEnd; //time between kf1 and end of video in seconds
     private float preProcessedDelta; //time between kfZero to kfOne in seconds before dragging
@@ -137,8 +138,24 @@ public class GraphManager : MonoBehaviour
         return (((kfOneObj.GetComponent<RectTransform>().localPosition.x - kfZeroObj.GetComponent<RectTransform>().localPosition.x) / ProjectManager.NumSegments)/screenWidth)*initialVidTime;
     }
 
+    private Vector3 CalcInboundsOnDrag(Vector3 objCurrPos, Vector3 minBound, Vector3 maxBound)
+    {
+        if (objCurrPos.x < minBound.x)
+            objCurrPos = minBound;
+        else if (objCurrPos.x > maxBound.x)
+            objCurrPos = maxBound;
+        return objCurrPos;
+    }
+
     private void OnKFZeroDraggedHandler(Vector2 p)
     {
+        //valid movement
+        Vector3 newPos = new Vector3(p.x, p.y, -1f);
+        Vector3 minPos = new Vector3(graphMinX + kfWidth / 2f, p.y, -1f);
+        Vector3 maxPos = new Vector3(kfOneObj.GetComponent<RectTransform>().localPosition.x - kfWidth, p.y, -1f);
+        kfZeroObj.GetComponent<RectTransform>().localPosition = CalcInboundsOnDrag(newPos, minPos, maxPos);
+
+        //calculate when valid
         preProcessedDelta = CalculatePreProcessedDelta();
         updateMainLineRenderer(false, 0f);
         updateGraphSegToFfmpegArr(false, 0f);
@@ -146,6 +163,13 @@ public class GraphManager : MonoBehaviour
 
     private void OnKFOneDraggedHandler(Vector2 p)
     {
+        //valid movement
+        Vector3 newPos = new Vector3(p.x, p.y, -1f);
+        Vector3 minPos = new Vector3(kfZeroObj.GetComponent<RectTransform>().localPosition.x + kfWidth, p.y, -1f);
+        Vector3 maxPos = new Vector3(graphMinX + screenWidth - kfWidth/2f, p.y, -1f);
+        kfOneObj.GetComponent<RectTransform>().localPosition = CalcInboundsOnDrag(newPos, minPos, maxPos);
+
+        //calculate when valid
         timeKfOneEnd = initialVidTime - ((kfOneObj.GetComponent<RectTransform>().localPosition.x - graphMinX) / screenWidth) * initialVidTime;
         handleCurveControlObjPos(timeKfOneEnd);
         curveControllerInitialPos = curveControllerObj.GetComponent<RectTransform>().localPosition;
@@ -290,6 +314,7 @@ public class GraphManager : MonoBehaviour
         //set objects init locations
         kfZeroObj.GetComponent<RectTransform>().localPosition = new Vector3(graphMinX + .25f * screenWidth, graphMinY + graphRangeY, -1f);
         kfOneObj.GetComponent<RectTransform>().localPosition = new Vector3(graphMinX + .75f * screenWidth, graphMinY + graphRangeY, -1f);
+        kfWidth = kfZeroObj.GetComponent<RectTransform>().rect.width;
         timeKfOneEnd = initialVidTime - ((kfOneObj.GetComponent<RectTransform>().localPosition.x-graphMinX)/screenWidth)*initialVidTime;
         handleCurveControlObjPos(timeKfOneEnd);
         curveControllerInitialPos = curveControllerObj.GetComponent<RectTransform>().localPosition;
