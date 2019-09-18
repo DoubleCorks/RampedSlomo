@@ -19,7 +19,7 @@ namespace FFmpeg
 
         public static void Handle(string message)
         {
-            if(string.IsNullOrEmpty(message))
+            if(string.IsNullOrWhiteSpace(message))
             {
                 Debug.LogWarning("FFmpeg callback is null.");
                 return;

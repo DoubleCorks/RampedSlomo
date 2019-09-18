@@ -86,6 +86,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
         //vid player callbacks
         _videoPlayer.prepareCompleted += VideoPrepareCompleted;
+        _videoPlayer.errorReceived += VideoErrorRecieved;
         _graphManager.OnGraphSegArrToFfmpegUpdated += OnGraphSegToFfmpegArrUpdatedHandler;
 
         //file path initialization
@@ -118,6 +119,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void OnDestroy()
     {
         _videoPlayer.prepareCompleted -= VideoPrepareCompleted;
+        _videoPlayer.errorReceived -= VideoErrorRecieved;
         _graphManager.OnGraphSegArrToFfmpegUpdated -= OnGraphSegToFfmpegArrUpdatedHandler;
     }
 
@@ -245,23 +247,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnFailure(string msg)
     {
         Debug.Log("OnFailure");
-        /*
-        int msg_length = msg.Length;
-        if (msg_length > 1000)
-        {
-            int num_loops = msg_length / 1000;
-            for (int i = 0; i < num_loops; i++)
-            {
-                Debug.Log("OnFailure:" + msg.Substring((i * 1000), 1000));
-            }
-            Debug.Log("OnFailure:" + msg.Substring(num_loops * 1000, msg_length - (num_loops * 1000)));
-        }
-        else
-        {
-            Debug.Log("OnFailure:" + msg);
-        }
-        */
-        //Debug.Log(msg.Length);
     }
 
     //Notify user about success here
@@ -401,6 +386,18 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         filesToRemove.Add(HandleDirectory(DECODED_ORIGINAL_AUDIO_FILENAME));
     }
 
+    private void VideoErrorRecieved(VideoPlayer _vp, string msg)
+    {
+        Debug.Log("video error recieved with message " + msg);
+        Debug.Log("attempting to log anything valid about our videoPlayer component");
+        Debug.Log("name should be VideoView but its = " + _vp.gameObject.name);
+        Debug.Log("url should be " + vidPath + " but its " + _vp.url);
+        Debug.Log("render texture should be text1 but its " + _vp.targetTexture.name);
+        AGAlertDialog.ShowMessageDialog("Something went wrong", "Ramped Slomo does not support .mov's (coming soon) on Android, if its an mp4 and it should work " +
+            "try again, or contact us masfxstudios@gmail.com", "Okay",
+            () => ResetAll());
+    }
+
     /// <summary>
     /// Resets back to initial state with no video
     /// </summary>
@@ -467,8 +464,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             file.Close();
 
             //videoplayer setup
-            _videoPlayer.url = vidPath;
             _videoPlayer.enabled = true;
+            _videoPlayer.url = vidPath;
             _videoPlayer.Prepare();
         }
     }
@@ -480,8 +477,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// </summary>
     private void HandleAndroidPickDialog()
     {
-        bool generatePreviewImages = false;
-        AGFilePicker.PickVideo(videoFile =>
+        Debug.Log("ProjectManager HandleAndroidPickDialog PickFile test with mimeType = video/mp4");
+        AGFilePicker.PickFile(videoFile =>
         {
             //filepath setup
             string msg = "Video file was picked: " + videoFile;
@@ -501,11 +498,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             file.Close();
 
             //videoplayer setup
-            _videoPlayer.url = vidPath;
             _videoPlayer.enabled = true;
+            _videoPlayer.url = vidPath;
             _videoPlayer.Prepare();
-        },
-            error => AGUIMisc.ShowToast("Cancelled picking video file: " + error), generatePreviewImages);
+        }, error => AGUIMisc.ShowToast("Cancelled picking video file: " + error), "video/mp4");
     }
 
     /// <summary>
@@ -607,13 +603,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         {
             commands = "-ss&" + startTime + "&-t&" + duration + "&-y&-i&" +
                 _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0]&-map&[v0]"
-                + "&-c:v&libx264&-preset&ultrafast&-crf&17&" + HandleDirectory(fileName);
+                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" + HandleDirectory(fileName);
         }
         else
         {
             commands = "-ss&" + startTime + "&-t&" + duration + "&-y&-i&" +
                 _videoPlayer.url + "&-i&" + watermarkPath + "&-filter_complex&[0:v]setpts=PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0]&-map&[o0]"
-                + "&-c:v&libx264&-preset&ultrafast&-crf&17&" + HandleDirectory(fileName);
+                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" + HandleDirectory(fileName);
         }
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -639,7 +635,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             commands = "-ss&" + startTime + "&-t&" + duration +
                 "&-y&-i&" + _videoPlayer.url +
                 "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0]" +
-                "&-map&[v0]&-c:v&libx264&-preset&ultrafast&-crf&17&" +
+                "&-map&[v0]&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" +
                 HandleDirectory(fileName);
         }
         else
@@ -647,7 +643,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             commands = "-ss&" + startTime + "&-t&" + duration +
                 "&-y&-i&" + _videoPlayer.url + "&-i&" + watermarkPath +
                 "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0]" +
-                "&-map&[o0]&-c:v&libx264&-preset&ultrafast&-crf&17&" +
+                "&-map&[o0]&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" +
                 HandleDirectory(fileName);
         }
         FFmpegCommands.AndDirectInput(commands);
@@ -770,7 +766,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                         m = heightLine / widthLine; //needs to be negative
                         b = (heightLine * -1f) / 2;
                         dt = 0f;
-                        //Debug.Log("segIdx is less widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                        Debug.Log("segIdx is less widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
                     else if(segIndex > midIdx)
                     {
@@ -779,7 +775,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                         m = heightLine / widthLine; //needs to be positive
                         b = (heightLine * -1f) / 2;
                         dt = 0f;
-                        //Debug.Log("segIdx is greater widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                        Debug.Log("segIdx is greater widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
                 }
 
@@ -804,7 +800,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 if(segIndex == midIdx)
                 {
                     pval = gpstffArr[segIndex].slowMult;
-                    //Debug.Log("segIndex = midIdx, pSegmentInfoArr[segIndex].slowMult=" + pval);
+                    Debug.Log("segIndex = midIdx, slowestMult=" + pval);
                     fpval += pval;
                     ipval = (int)fpval;
                     inputTime = ipval + iRampVal;
@@ -816,7 +812,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                     float valOnLine = (m * dt + b);
                     //Debug.Log("m=" + m + " b=" + b + " dt=" + dt);
                     pval = gpstffArr[segIndex].slowMult + valOnLine;
-                    //Debug.Log("segIndex = " + segIndex +", pval=" + pval);
+                    Debug.Log("segIndex= " + segIndex +", pval=" + pval);
                     fpval += pval;
                     ipval = (int)fpval;
                     inputTime = ipval + iRampVal;
@@ -864,9 +860,16 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //ffmpeg -i video.mp4 -i audio.wav -c:v copy -c:a aac -strict experimental output.mp4
         //ffmpeg -i input.mp4 -i input.mp3 -c copy -map 0:v:0 -map 1:a:0 output.mp4
         string outputString = FINAL_VIDEO_FILENAME + DateTime.Now.ToString("MMddyyyyHHmmss") + ".mp4";
-        string commands = "-i&" + HandleDirectory(CONCATENATED_SECTIONS_FILENAME) + "&-i&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME) + "&-c&copy&" +
-            "-map&0:v&-map&1:a&-shortest&" + HandleDirectory(outputString);
+        string commands = "-i&" + HandleDirectory(CONCATENATED_SECTIONS_FILENAME) + "&-i&" + HandleDirectory(TIME_SCALED_ENCODED_AUDIO_FILENAME) + "&-c:v&copy&" +
+            "-map&0:v&-map&1:a&-shortest&-c:a&aac&-b:a&128k&" + HandleDirectory(outputString);
+
         FFmpegCommands.AndDirectInput(commands);
     }
     #endregion
 }
+
+/*
+-y -i /storage/emulated/0/Ramped Slomo/Ramped Slomo Documents/IMG_4446.mov -c:v libx264 -preset ultrafast
+ -crf 17 -tune zerolatency -profile:v baseline -level 3.0 -c:a aac -b:a 128k
+ /storage/emulated/0/RampedSlomoEdited/newTempUrl.mp4
+ * */
