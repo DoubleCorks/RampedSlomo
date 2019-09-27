@@ -184,7 +184,27 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _inputBlocker.SetActive(true);
         _progressBar.fillAmount = 0;
         progressIncrementer = 1f/taskPQueue.Count;
-        taskPQueue.Dequeue()();
+
+        //file size check
+        int file_size = ((int)new System.IO.FileInfo(vidPath).Length*3)/1048576;
+        int storage_left = SimpleDiskUtils.DiskUtils.CheckAvailableSpace();
+        Debug.Log(vidPath + "size = " + file_size + " storage left = " + storage_left);
+        if(file_size > storage_left)
+        {
+            AGAlertDialog.ShowMessageDialog("Not Enough Space", "You do not have enough space left on your device to save an edited video", "Okay",
+                () => Debug.Log("Clicked Okay"));
+        }
+        else
+        {
+            //watermark setup
+            Texture2D tex = Resources.Load("MASfXWatermark") as Texture2D;
+            byte[] watermarkBArr = tex.EncodeToPNG();
+            FileStream file = File.Open(watermarkPath, FileMode.OpenOrCreate);
+            BinaryWriter binary = new BinaryWriter(file);
+            binary.Write(watermarkBArr);
+            file.Close();
+            taskPQueue.Dequeue()();
+        }
     }
 
     public void OnChooseVideoClicked()
@@ -204,7 +224,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 #endif
     }
 
-    public void OnResetButtonClicked()
+    public void OnResetAllButtonClicked()
     {
         ResetAll();
         if (_hamburgerMenu.activeInHierarchy)
@@ -212,6 +232,17 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             _hamburgerMenu.SetActive(false);
         }
     }
+
+    public void OnResetGraphButtonClicked()
+    {
+        _graphManager.DestroyScrollGraph();
+        _graphManager.InitializeScrollGraph((float)_videoPlayer.length);
+        if (_hamburgerMenu.activeInHierarchy)
+        {
+            _hamburgerMenu.SetActive(false);
+        }
+    }
+
 
     public void OnHamburgerButtonClicked()
     {
@@ -455,14 +486,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             watermarkPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), WATERMARK_FILENAME);
             Debug.Log("vidPath=" + vidPath + ": vidDirectoryPath=" + vidEditedDirectoryPath + ": vidListPath=" + vidListPath + ": watermarkPath=" + watermarkPath);
 
-            //watermark setup
-            Texture2D tex = Resources.Load("MASfXWatermark") as Texture2D;
-            byte[] watermarkBArr = tex.EncodeToPNG();
-            var file = File.Open(watermarkPath, FileMode.OpenOrCreate);
-            var binary = new BinaryWriter(file);
-            binary.Write(watermarkBArr);
-            file.Close();
-
             //videoplayer setup
             _videoPlayer.enabled = true;
             _videoPlayer.url = vidPath;
@@ -488,14 +511,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             vidListPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), VID_FILES_TXT);
             watermarkPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), WATERMARK_FILENAME);
             Debug.Log("vidPath=" + vidPath + ": vidDirectoryPath=" + vidEditedDirectoryPath + ": vidListPath=" + vidListPath + ": watermarkPath=" + watermarkPath);
-
-            //watermark setup
-            Texture2D tex = Resources.Load("MASfXWatermark") as Texture2D;
-            byte[] watermarkBArr = tex.EncodeToPNG();
-            var file = File.Open(watermarkPath, FileMode.OpenOrCreate);
-            var binary = new BinaryWriter(file);
-            binary.Write(watermarkBArr);
-            file.Close();
 
             //videoplayer setup
             _videoPlayer.enabled = true;
