@@ -40,6 +40,7 @@ public class GraphManager : MonoBehaviour
     private float preProcessedDelta; //time between kfZero to kfOne in seconds before dragging
 
     //constant vals for background scroll graph
+    private static int qFilter = 5;
     private static int graphLength = 3;
     private static int numStampsOnScreen = 5; //higher the more number of stamps that fit on screen
     private static float ratingRes = 0.1f; //for 0, 0.5, 1, 1.5, 2, 2.5; could also be 0.1 or 1 or ...
@@ -60,7 +61,7 @@ public class GraphManager : MonoBehaviour
         graphRangeY = graphMaxY - graphMinY;
         graphMinX = -1 * ((screenWidth * graphLength) / 2); //beginning of graph however wide
         graphMaxX = graphMinX * -1; //end of graph however wide
-        graphRangeX = graphMaxX - graphMinX;
+        graphRangeX = graphMaxX - graphMinX; 
 
         //scrollable obj and ui obj
         scrollGraphRect = _scrollGraphView.GetComponent<ScrollRect>();
@@ -204,40 +205,44 @@ public class GraphManager : MonoBehaviour
         curveControllerInitialPos = new Vector3(p.x, p.y, -1f);
     }
 
-    //updates mainLineRenderer to draw processed black
+    //updates mainLineRenderer to draw "processed audio" - now just segments passing through midpoints of black
     private void updateMainLineRenderer(bool drawCurve, float ccInitFinalDist)
     {
-        mainLineRenderer.positionCount = ProjectManager.NumSegments*2 + 4; //drawing black protocol
+        int curveDetail = 21;
+        mainLineRenderer.positionCount = curveDetail + 4;
         mainLineRenderer.SetPosition(0, new Vector3(graphMinX, graphMinY + graphRangeY, -1f)); //will not change
         mainLineRenderer.SetPosition(1, kfZeroObj.GetComponent<RectTransform>().localPosition);
+
         float segHeight = graphMinY + graphRangeY;
-        float postProcessedDelta = preProcessedDelta; //postprocesseddelta only updated when curve is dragged
-        if (ccInitFinalDist > 0)
-            postProcessedDelta = ccInitFinalDist + preProcessedDelta;
-        float parabLength = Mathf.Min(postProcessedDelta * ProjectManager.NumSegments,4f); //length in seconds of parabola
-        for (int i = 0; i < ProjectManager.NumSegments; i++)
+        float initialParab = preProcessedDelta * ProjectManager.NumSegments; //length in seconds of parabola
+        float dx = ((float)1 / (float)(curveDetail + 1)) * (initialParab + ccInitFinalDist);
+        float dxLength = ((((float)1 / (float)(curveDetail)) * initialParab) / initialVidTime) * screenWidth;
+
+        //amplitude = (p/q)/((i+p)-(i+p)/2)^2
+        float amplitude = (ccInitFinalDist / qFilter) / (((initialParab + ccInitFinalDist) - ((initialParab + ccInitFinalDist) / 2f)) * ((initialParab + ccInitFinalDist) - ((initialParab + ccInitFinalDist) / 2f)));
+
+        //Debug.Log("initialParab = " + initialParab + " postParab = " + (initialParab + ccInitFinalDist).ToString() + "prePro = " + preProcessedDelta + " ccinitfinalDist = " + ccInitFinalDist + " amplitude = " + amplitude);
+        for (int i = 0; i < curveDetail; i++)
         {
             segHeight = graphMinY + graphRangeY; //default height
+            float slowMult = 1.0f;
             //calculate height if draw
             if (drawCurve)
             {
-                //y = 1+((x-length)x);
-                float x0 = ((i) * postProcessedDelta);
-                float x1 = ((i+1) * postProcessedDelta);
-                float xm = ((x0+x1)/2f);
-                float slowMult = (parabLength + ((xm - parabLength) * xm))/parabLength;
+                //y = a(dx-(i+p)/2)^2-(p/qfilter)
+                slowMult = 1f+(amplitude * ((dx - (initialParab + ccInitFinalDist) / 2f) * (dx - (initialParab + ccInitFinalDist) / 2f)) - (ccInitFinalDist / qFilter));
                 segHeight = (graphMinY + slowMult * graphRangeY);
             }
-            //calculate first position and put into line renderer
-            Vector3 xPosZero = new Vector3(mainLineRenderer.GetPosition(1+(2*i)).x, segHeight, -1f);
-            mainLineRenderer.SetPosition(2 + (2*i), xPosZero);
 
-            //calculate second position and put into line renderer
-            Vector3 xPosOne = new Vector3(mainLineRenderer.GetPosition(2+(2*i)).x + (1f/((segHeight-graphMinY)/graphRangeY))*((preProcessedDelta/initialVidTime)*screenWidth), segHeight, -1f);
-            mainLineRenderer.SetPosition(3 + (2*i), xPosOne);
+            float oldLength = ((((float)(i) / (float)(curveDetail + 1)) * initialParab) / initialVidTime) * screenWidth; //parabSeconds/vidSeconds = 3/10 - 4/10 - 5/10 
+            float currLength = ((((float)(i + 1) / (float)(curveDetail + 1)) * initialParab) / initialVidTime) * screenWidth; //parabSeconds/vidSeconds = 3/10 - 4/10 - 5/10 
+            float currXPos = mainLineRenderer.GetPosition(i+1).x + (1.0f / slowMult) * (currLength-oldLength);
+            Vector3 newPos = new Vector3(currXPos, segHeight, -1f);
+            mainLineRenderer.SetPosition(i+2, newPos);
+            dx += ((float)1 / (float)(curveDetail + 1)) * (initialParab + ccInitFinalDist);
         }
 
-        mainLineRenderer.SetPosition(mainLineRenderer.positionCount-2, new Vector3(mainLineRenderer.GetPosition(mainLineRenderer.positionCount-3).x, graphMinY + graphRangeY, -1f));
+        mainLineRenderer.SetPosition(mainLineRenderer.positionCount-2, new Vector3(mainLineRenderer.GetPosition(mainLineRenderer.positionCount-3).x + dxLength, graphMinY + graphRangeY, -1f));
         mainLineRenderer.SetPosition(mainLineRenderer.positionCount-1, new Vector3(mainLineRenderer.GetPosition(mainLineRenderer.positionCount-2).x + (timeKfOneEnd/initialVidTime)*screenWidth, graphMinY + graphRangeY, -1f));
     }
 
@@ -249,11 +254,10 @@ public class GraphManager : MonoBehaviour
         GraphSegToFfmpegArr[0].slowMult = 1f;
 
         //slomo segs = 1->NumSegs
-        float postProcessedDelta = 0.0f;
-        postProcessedDelta = preProcessedDelta;
-        if (ccInitFinalDist > 0)
-            postProcessedDelta = ccInitFinalDist + preProcessedDelta;
-        float parabLength = Mathf.Min(postProcessedDelta * ProjectManager.NumSegments, 4f);
+        float initialParab = preProcessedDelta * ProjectManager.NumSegments; //length in seconds of parabola
+        //amplitude = (p/q)/((i+p)-(i+p)/2)^2
+        float amplitude = (ccInitFinalDist / qFilter) / (((initialParab + ccInitFinalDist) - ((initialParab + ccInitFinalDist) / 2f)) * ((initialParab + ccInitFinalDist) - ((initialParab + ccInitFinalDist) / 2f)));
+        float postProcessedDelta = (ccInitFinalDist/ProjectManager.NumSegments) + preProcessedDelta;
         for (int i = 0; i < ProjectManager.NumSegments; i++)
         {
             GraphSegToFfmpegArr[i + 1].startTime = GraphSegToFfmpegArr[0].duration + preProcessedDelta * i; //init + ppd = cur start time i.e 1s + 0s/.33 of original video
@@ -265,11 +269,18 @@ public class GraphManager : MonoBehaviour
                 float x0 = ((i) * postProcessedDelta);
                 float x1 = ((i + 1) * postProcessedDelta);
                 float xm = ((x0 + x1) / 2f);
-                float slowMult = (parabLength + ((xm - parabLength) * xm))/parabLength;
+                float slowMult = 1f + (amplitude * ((xm - (initialParab + ccInitFinalDist) / 2f) * (xm - (initialParab + ccInitFinalDist) / 2f)) - (ccInitFinalDist / qFilter));
                 GraphSegToFfmpegArr[i + 1].slowMult = slowMult; //same equation as line renderer
-                //Debug.Log("update graphsegtoffmpeg slowmult=" + slowMult + " parabLength=" + parabLength + " postProcessedDelta=" + postProcessedDelta);
+                Debug.Log("xm = " + xm + " slowmult = " + slowMult);
             }
         }
+
+        float tempParabEstimate = 0.0f;
+        for (int i = 0; i < ProjectManager.NumSegments; i++)
+        {
+            tempParabEstimate += (1.0f / GraphSegToFfmpegArr[i + 1].slowMult) * GraphSegToFfmpegArr[i + 1].duration;
+        }
+        Debug.Log("esitmated ParabLength = " + tempParabEstimate);
 
         //last segment = numsegs+1
         GraphSegToFfmpegArr[ProjectManager.NumSegments + 1].startTime = GraphSegToFfmpegArr[ProjectManager.NumSegments].startTime + preProcessedDelta;

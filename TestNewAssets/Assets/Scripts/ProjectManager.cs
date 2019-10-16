@@ -19,7 +19,8 @@ using SimpleFileBrowser;
 
 public class ProjectManager : MonoBehaviour, IFFmpegHandler
 {
-    public const string RAMPED_SLOMO_MOVIES_DIRECTORY = "RampedSlomoEdited";
+    public const string RAMPED_SLOMO_EDITED_DIRECTORY = "RampedSlomoEdited";
+    public const string RAMPED_SLOMO_TEMP_DIRECTORY = ".RampedSlomoTemp";
     public const string VID_FILES_TXT = "vidFiles.txt";
     public const string TRIMMED_SECTION_ONE_FILENAME = "trimmedSectionOne.mov";
     public const string TRIMMED_SECTION_THREE_FILENAME = "trimmedSectionThree.mov";
@@ -51,7 +52,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
     //track filepaths
     private HashSet<string> filesToRemove; //remove files from users device after processing
-    private string vidEditedDirectoryPath; //path to directory new video lives in
+    private string vidTempDirectoryPath; //path to directory temp video live in
+    private string vidFinalDirectoryPath; //path to directory new video lives in
     private string vidListPath; //path to new directory which edited video will live in
     private string vidPath; //path to original vid and new temp files to edit
     private string watermarkPath; //path to directory which watermark lives when processing
@@ -65,7 +67,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private bool paidForApp;
 
     //version 1 slomo resolution
-    public static int NumSegments = 11;
+    public static int NumSegments = 9;
 
     #region Monobehaviors
 
@@ -90,7 +92,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _graphManager.OnGraphSegArrToFfmpegUpdated += OnGraphSegToFfmpegArrUpdatedHandler;
 
         //file path initialization
-        vidEditedDirectoryPath = "";
+        vidTempDirectoryPath = "";
+        vidFinalDirectoryPath = "";
         vidListPath = "";
         vidPath = "";
         watermarkPath = "";
@@ -411,10 +414,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //clean up added files
         filesToRemove.Add(watermarkPath);
         filesToRemove.Add(vidListPath);
-        filesToRemove.Add(HandleDirectory(Path.GetDirectoryName(vidPath), TIME_SCALED_AUDIO_FILENAME));
-        filesToRemove.Add(HandleDirectory(Path.GetDirectoryName(vidPath), TIME_SCALED_ENCODED_AUDIO_FILENAME));
-        filesToRemove.Add(HandleDirectory(Path.GetDirectoryName(vidPath), CONCATENATED_SECTIONS_FILENAME));
-        filesToRemove.Add(HandleDirectory(Path.GetDirectoryName(vidPath), DECODED_ORIGINAL_AUDIO_FILENAME));
+        filesToRemove.Add(HandleDirectory(vidTempDirectoryPath, TIME_SCALED_AUDIO_FILENAME));
+        filesToRemove.Add(HandleDirectory(vidTempDirectoryPath, TIME_SCALED_ENCODED_AUDIO_FILENAME));
+        filesToRemove.Add(HandleDirectory(vidTempDirectoryPath, CONCATENATED_SECTIONS_FILENAME));
+        filesToRemove.Add(HandleDirectory(vidTempDirectoryPath, DECODED_ORIGINAL_AUDIO_FILENAME));
     }
 
     private void VideoErrorRecieved(VideoPlayer _vp, string msg)
@@ -480,11 +483,14 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         {
             //filepath setup
             vidPath = FileBrowser.Result;
-            vidEditedDirectoryPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), RAMPED_SLOMO_MOVIES_DIRECTORY);
-            Directory.CreateDirectory(vidEditedDirectoryPath);
-            vidListPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), VID_FILES_TXT);
-            watermarkPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), WATERMARK_FILENAME);
-            Debug.Log("vidPath=" + vidPath + ": vidDirectoryPath=" + vidEditedDirectoryPath + ": vidListPath=" + vidListPath + ": watermarkPath=" + watermarkPath);
+            vidFinalDirectoryPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), RAMPED_SLOMO_EDITED_DIRECTORY);
+            Directory.CreateDirectory(vidFinalDirectoryPath);
+            vidTempDirectoryPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), RAMPED_SLOMO_TEMP_DIRECTORY);
+            Directory.CreateDirectory(vidTempDirectoryPath);
+            vidListPath = System.IO.Path.Combine(Path.GetDirectoryName(vidTempDirectoryPath), VID_FILES_TXT);
+            watermarkPath = System.IO.Path.Combine(Path.GetDirectoryName(vidTempDirectoryPath), WATERMARK_FILENAME);
+            Debug.Log("vidPath=" + vidPath + "\nvidTempDirectoryPath=" + vidTempDirectoryPath + "\nvidFinalDirectoryPath=" + vidFinalDirectoryPath + "\nvidListPath="
+                + vidListPath + "\nwatermarkPath=" + watermarkPath);
 
             //videoplayer setup
             _videoPlayer.enabled = true;
@@ -506,11 +512,14 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             //filepath setup
             string msg = "Video file was picked: " + videoFile;
             vidPath = videoFile.OriginalPath;
-            vidEditedDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, RAMPED_SLOMO_MOVIES_DIRECTORY);
-            Directory.CreateDirectory(vidEditedDirectoryPath);
-            vidListPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), VID_FILES_TXT);
-            watermarkPath = System.IO.Path.Combine(Path.GetDirectoryName(vidPath), WATERMARK_FILENAME);
-            Debug.Log("vidPath=" + vidPath + ": vidDirectoryPath=" + vidEditedDirectoryPath + ": vidListPath=" + vidListPath + ": watermarkPath=" + watermarkPath);
+            vidFinalDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, RAMPED_SLOMO_EDITED_DIRECTORY);
+            Directory.CreateDirectory(vidFinalDirectoryPath);
+            vidTempDirectoryPath = System.IO.Path.Combine(AGEnvironment.ExternalStorageDirectoryPath, RAMPED_SLOMO_TEMP_DIRECTORY);
+            Directory.CreateDirectory(vidTempDirectoryPath);
+            vidListPath = System.IO.Path.Combine(vidTempDirectoryPath, VID_FILES_TXT);
+            watermarkPath = System.IO.Path.Combine(vidTempDirectoryPath, WATERMARK_FILENAME);
+            Debug.Log("vidPath=" + vidPath + "\nvidTempDirectoryPath=" + vidTempDirectoryPath + "\nvidFinalDirectoryPath=" + vidFinalDirectoryPath + "\nvidListPath="
+                + vidListPath + "\nwatermarkPath=" + watermarkPath);
 
             //videoplayer setup
             _videoPlayer.enabled = true;
@@ -611,20 +620,20 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// <param name="hasPaid"></param>
     private void trimSection(float startTime, float duration, string fileName, bool hasPaid)
     {
-        WriteStringToTxtFile(HandleDirectory(Path.GetDirectoryName(vidPath), fileName));
+        WriteStringToTxtFile(HandleDirectory(vidTempDirectoryPath, fileName));
         _progressText.text = "Ramp Slomoing";
         string commands = "";
         if(hasPaid)
         {
             commands = "-ss&" + startTime + "&-t&" + duration + "&-y&-i&" +
                 _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0]&-map&[v0]"
-                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" + HandleDirectory(Path.GetDirectoryName(vidPath), fileName);
+                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" + HandleDirectory(vidTempDirectoryPath, fileName);
         }
         else
         {
             commands = "-ss&" + startTime + "&-t&" + duration + "&-y&-i&" +
                 _videoPlayer.url + "&-i&" + watermarkPath + "&-filter_complex&[0:v]setpts=PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0]&-map&[o0]"
-                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" + HandleDirectory(Path.GetDirectoryName(vidPath), fileName);
+                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" + HandleDirectory(vidTempDirectoryPath, fileName);
         }
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -641,7 +650,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// <param name="hasPaid"></param>
     private void slowSection(float startTime, float duration, string fileName, float slowMult, bool hasPaid)
     {
-        WriteStringToTxtFile(HandleDirectory(Path.GetDirectoryName(vidPath),  fileName));
+        WriteStringToTxtFile(HandleDirectory(vidTempDirectoryPath,  fileName));
         //_progressText.text = fileName + " at " + startTime + " for " + duration + " at " + slowMult + " speed";
         _progressText.text = "Ramp Slomoing";
         string commands = "";
@@ -651,7 +660,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 "&-y&-i&" + _videoPlayer.url +
                 "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0]" +
                 "&-map&[v0]&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" +
-                HandleDirectory(Path.GetDirectoryName(vidPath), fileName);
+                HandleDirectory(vidTempDirectoryPath, fileName);
         }
         else
         {
@@ -659,7 +668,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 "&-y&-i&" + _videoPlayer.url + "&-i&" + watermarkPath +
                 "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0]" +
                 "&-map&[o0]&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" +
-                HandleDirectory(Path.GetDirectoryName(vidPath), fileName);
+                HandleDirectory(vidTempDirectoryPath, fileName);
         }
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -672,7 +681,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         Debug.Log("CONCATENATING SECTIONS");
         Debug.Log(File.ReadAllText(vidListPath));
         _progressText.text = "concat demuxing";
-        string commands = "-f&concat&-safe&0&-y&-i&" + vidListPath + "&-c:v&copy&" + HandleDirectory(Path.GetDirectoryName(vidPath), CONCATENATED_SECTIONS_FILENAME);
+        string commands = "-f&concat&-safe&0&-y&-i&" + vidListPath + "&-c:v&copy&" + HandleDirectory(vidTempDirectoryPath, CONCATENATED_SECTIONS_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -685,7 +694,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //dont remove original audio file at end for testing
         //input SETUP ALL PROPERTIES OF OUTPUT output.raw
         _progressText.text = "extracting original audio";
-        string commands = "-y&-i&" + _videoPlayer.url + "&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-b:a&128k&" + HandleDirectory(Path.GetDirectoryName(vidPath), DECODED_ORIGINAL_AUDIO_FILENAME);
+        string commands = "-y&-i&" + _videoPlayer.url + "&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-b:a&128k&" + HandleDirectory(vidTempDirectoryPath, DECODED_ORIGINAL_AUDIO_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -697,13 +706,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _progressText.text = "time scale audio and encoding";
 
         //delete tsa.raw since it might exist? seems bad
-        if (File.Exists(HandleDirectory(Path.GetDirectoryName(vidPath), TIME_SCALED_AUDIO_FILENAME)))
+        if (File.Exists(HandleDirectory(vidTempDirectoryPath, TIME_SCALED_AUDIO_FILENAME)))
         {
-            File.Delete(HandleDirectory(Path.GetDirectoryName(vidPath), TIME_SCALED_AUDIO_FILENAME));
+            File.Delete(HandleDirectory(vidTempDirectoryPath, TIME_SCALED_AUDIO_FILENAME));
         }
         
         //making doas -doa.raw is overwritten every time so its okay
-        byte[] doaBytes = File.ReadAllBytes(HandleDirectory(Path.GetDirectoryName(vidPath), DECODED_ORIGINAL_AUDIO_FILENAME));
+        byte[] doaBytes = File.ReadAllBytes(HandleDirectory(vidTempDirectoryPath, DECODED_ORIGINAL_AUDIO_FILENAME));
         int numSamplesPerChannel = (doaBytes.Length / 2) / 2; //doabytes/2 = total samples. total samples/2 = samples per channel
         Int16[] doaLeft = new Int16[numSamplesPerChannel];
         Int16[] doaRight = new Int16[numSamplesPerChannel];
@@ -719,62 +728,41 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             doaRight[j] = rightVal;
             j++;
         }
-
-        //make a new fake graph seg to ffmpeg array to deal with error when mult is > .5f
-        float fakeDistance = 0.0f;
-        bool firstLessThanFive = true;
-        GraphSegToFfmpeg[] fakeGpstffArr = new GraphSegToFfmpeg[gpstffArr.Length];
-        for (int i = 0; i < fakeGpstffArr.Length; i++)
-        {
-            if(gpstffArr[i].slowMult < .5f && firstLessThanFive)
-            {
-                fakeDistance = 0.0f;
-                firstLessThanFive = false;
-            }
-            else if(gpstffArr[i].slowMult < .5f)
-            {
-                fakeDistance += (1f/gpstffArr[i].slowMult)*(gpstffArr[i].duration);
-            }
-        }
-
-        float fakeSlowMult = 0.0f;
-        float fakeH = fakeDistance / 2f;
-        float fakeK = .05f*-1f; //controls height of error curve, increase when audio ends early //in between .01 and .05
-        float fakeA = fakeK / ((fakeDistance * fakeDistance * -1f) / 4);
-        float x = 0.0f;
-        //now populate fake ....
-        for (int i = 0; i < fakeGpstffArr.Length; i++)
-        {
-            if(gpstffArr[i].slowMult < .5f)
-            {
-                fakeSlowMult = fakeA * ((x - fakeH) * (x - fakeH)) + fakeK - fakeK;
-                Debug.Log("fakeSlowMult = " + fakeSlowMult);
-                fakeGpstffArr[i] = gpstffArr[i];
-                fakeGpstffArr[i].slowMult = gpstffArr[i].slowMult - fakeSlowMult;
-                x += (gpstffArr[i].duration * (1f / gpstffArr[i].slowMult));
-            }
-            else
-            {
-                fakeGpstffArr[i] = gpstffArr[i];
-            }
-            Debug.Log("original = " + gpstffArr[i].slowMult + " fake arr = " + fakeGpstffArr[i].slowMult + " i = " + i);
-        }
-
-        //use fakeGpstffArr starting now
-        
+       
         //make arguments for tsas
-        float[] processedDurations = new float[fakeGpstffArr.Length]; //actual approx duration of each segment in seconds
+        float[] processedDurations = new float[gpstffArr.Length]; //actual approx duration of each segment in seconds
+        int midIdx = gpstffArr.Length / 2;
+        float midA = 0.0f;
+        float midH = 0.0f;
+        float midK = 0.0f;
 
         //calculate all processedDurations
         float slomoDuration = 0.0f;
-        for (int i = 0; i < fakeGpstffArr.Length; i++)
+        for (int i = 0; i < gpstffArr.Length; i++)
         {
-            float ds = fakeGpstffArr[i].duration * (1f / fakeGpstffArr[i].slowMult); //approx duration of processed segment in seconds
+            float ds = (gpstffArr[i].duration) * (1f / gpstffArr[i].slowMult); //approx duration of processed segment in seconds
             float nextMultipleOf60ths = (int)((ds * 60f) + 1) / 60f; //actual duration??
-            processedDurations[i] = nextMultipleOf60ths;
-            //Debug.Log("processedDuration " + i + " ="+nextMultipleOf60ths);
-            if(i > 0 && i < fakeGpstffArr.Length-1)
-                slomoDuration += nextMultipleOf60ths;
+            if (i != midIdx)
+            {
+                processedDurations[i] = nextMultipleOf60ths+.01667f;
+                //Debug.Log("processedDuration " + i + " ="+nextMultipleOf60ths);
+                if (i > 0 && i < gpstffArr.Length - 1)
+                    slomoDuration += nextMultipleOf60ths;
+            }
+            else
+            {
+                //shallow abs
+                float w = nextMultipleOf60ths;
+                Debug.Log("nextMultipleOf60ths = " + nextMultipleOf60ths);
+                midH = w / 2f;
+                midK = -.025f; //change this to deepen parabola
+                midA = (-1f * midK) / (midH * midH);
+                float integralMidParab = (4f * midH * midK) / 3f;
+                processedDurations[i] = nextMultipleOf60ths-integralMidParab;
+                slomoDuration += nextMultipleOf60ths-integralMidParab;
+                Debug.Log("after integration = " + (nextMultipleOf60ths - integralMidParab));
+            }
+
         }
 
         //arguments
@@ -784,8 +772,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         int allSamplesBeforeKfZero = (int)(processedDurations[0] * 44100f);
         int allSamplesBeforeKfOne = (int)((processedDurations[0] + slomoDuration)*44100f);
         int allSamples = (int)((processedDurations[0] + slomoDuration + processedDurations[processedDurations.Length-1]) * 44100f);
-        Debug.Log("allSamples = " + allSamples);
         Debug.Log("slomoDuration = " + slomoDuration);
+        Debug.Log("allSamples = " + allSamples);
         Debug.Log("allSamplesBeforeKfZero = " + allSamplesBeforeKfZero);
         Debug.Log("allSamplesBeforeKfOne = " + allSamplesBeforeKfOne);
 
@@ -794,7 +782,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         Int16[] tsaRight = new Int16[allSamples];
 
         int segIndex = 0; //index into segDurations
-        int midIdx = fakeGpstffArr.Length / 2;
         int currSampleThreshold = (int)(processedDurations[0]*44100f);
         float widthLine = 0;
         float heightLine = 0f;
@@ -825,23 +812,27 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                     if(segIndex < midIdx)
                     {
                         widthLine = processedDurations[segIndex];
-                        heightLine = (fakeGpstffArr[segIndex + 1].slowMult - fakeGpstffArr[segIndex].slowMult);
+                        heightLine = (gpstffArr[segIndex + 1].slowMult - gpstffArr[segIndex].slowMult);
                         m = heightLine / widthLine; //needs to be negative
                         b = (heightLine * -1f) / 2;
                         dt = 0f;
-                        //Debug.Log("currSeconds = " + (i/44100f).ToString() + " segIdx is less widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                        Debug.Log("currSeconds = " + (i/44100f).ToString() + " segIdx is less widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
                     else if(segIndex > midIdx)
                     {
                         widthLine = processedDurations[segIndex];
-                        heightLine = -1f*((fakeGpstffArr[segIndex - 1].slowMult - fakeGpstffArr[segIndex].slowMult));
+                        heightLine = -1f*((gpstffArr[segIndex - 1].slowMult - gpstffArr[segIndex].slowMult));
                         m = heightLine / widthLine; //needs to be positive
                         b = (heightLine * -1f) / 2;
                         dt = 0f;
-                        //Debug.Log("currSeconds = " + (i / 44100f).ToString() + " segIdx is greater widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                        Debug.Log("currSeconds = " + (i / 44100f).ToString() + " segIdx is greater widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
-                    //else
-                        //Debug.Log("currSeconds = " + (i / 44100f).ToString() + " slowMult = "  + gpstffArr[segIndex].slowMult);
+                    else
+                    {
+                        dt = 0f;
+                        Debug.Log("currSeconds = " + (i / 44100f).ToString() + " slowMult = " + gpstffArr[segIndex].slowMult);
+                    }
+
                 }
 
             }
@@ -864,24 +855,29 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             {
                 if(segIndex == midIdx)
                 {
-                    pval = fakeGpstffArr[segIndex].slowMult;
+                    float valOnLine = (midA * ((dt - midH) * (dt - midH))) + midK;
+                    //Debug.Log("valOnLine = " + valOnLine);
+                    pval = Mathf.Min(gpstffArr[segIndex].slowMult + valOnLine, gpstffArr[segIndex].slowMult);
+                    //Debug.Log("MIDDLE pval = " + pval + " original slowMult = " + gpstffArr[segIndex].slowMult);
                     fpval += pval;
                     ipval = (int)fpval;
                     inputTime = ipval + iRampVal;
                     tsaLeft[i] = doaLeft[inputTime];
                     tsaRight[i] = doaRight[inputTime];
+                    dt += 1 / (44100f);
+                    //Debug.Log("MID SEGMENT!! pval = " + pval + " fpval = " + fpval + " ipval = " + ipval + " inputTime = " + inputTime);
                     //Debug.Log("mid inputTime=" + inputTime);
                 }
                 else
                 {
                     float valOnLine = (m * dt + b);
-                    pval = fakeGpstffArr[segIndex].slowMult + valOnLine;
+                    pval = gpstffArr[segIndex].slowMult + valOnLine;
                     fpval += pval;
                     ipval = (int)fpval;
                     inputTime = ipval + iRampVal;
                     tsaLeft[i] = doaLeft[inputTime];
                     tsaRight[i] = doaRight[inputTime];
-                    //Debug.Log("inputTime=" + inputTime);
+                    //Debug.Log("pval = " + pval + " fpval = " + fpval + " ipval = " + ipval + " inputTime = " + inputTime);
                     dt += 1 / (44100f);
                 }
             }
@@ -898,7 +894,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         }
 
         //turn tsa into byte[]
-        var file = File.Open(HandleDirectory(Path.GetDirectoryName(vidPath), TIME_SCALED_AUDIO_FILENAME), FileMode.OpenOrCreate);
+        var file = File.Open(HandleDirectory(vidTempDirectoryPath, TIME_SCALED_AUDIO_FILENAME), FileMode.OpenOrCreate);
         var binary = new BinaryWriter(file);
         byte[] tsaBytes = new byte[tsa.Length * 2]; //singleChannelCount*2 = total samples * 2 bytes per sample = total bytes
         j = 0;
@@ -913,7 +909,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         file.Close();
 
         //SETUP ALL PROPERTIES OF RAW INPUT input.raw output.mp3
-        string commands = "-y&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-i&" + HandleDirectory(Path.GetDirectoryName(vidPath), TIME_SCALED_AUDIO_FILENAME) + "&" + HandleDirectory(Path.GetDirectoryName(vidPath), TIME_SCALED_ENCODED_AUDIO_FILENAME);
+        string commands = "-y&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-i&" + HandleDirectory(vidTempDirectoryPath, TIME_SCALED_AUDIO_FILENAME) + "&" + HandleDirectory(vidTempDirectoryPath, TIME_SCALED_ENCODED_AUDIO_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -924,8 +920,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //ffmpeg -i video.mp4 -i audio.wav -c:v copy -c:a aac -strict experimental output.mp4
         //ffmpeg -i input.mp4 -i input.mp3 -c copy -map 0:v:0 -map 1:a:0 output.mp4
         string outputString = FINAL_VIDEO_FILENAME + DateTime.Now.ToString("MMddyyyyHHmmss") + ".mp4";
-        string commands = "-i&" + HandleDirectory(Path.GetDirectoryName(vidPath), CONCATENATED_SECTIONS_FILENAME) + "&-i&" + HandleDirectory(Path.GetDirectoryName(vidPath), TIME_SCALED_ENCODED_AUDIO_FILENAME) + "&-c:v&copy&" +
-            "-map&0:v&-map&1:a&-c:a&aac&-b:a&128k&" + HandleDirectory(vidEditedDirectoryPath, outputString);
+        string commands = "-i&" + HandleDirectory(vidTempDirectoryPath, CONCATENATED_SECTIONS_FILENAME) + "&-i&" + HandleDirectory(vidTempDirectoryPath, TIME_SCALED_ENCODED_AUDIO_FILENAME) + "&-c:v&copy&" +
+            "-map&0:v&-map&1:a&-c:a&aac&-b:a&128k&" + HandleDirectory(vidFinalDirectoryPath, outputString);
         FFmpegCommands.AndDirectInput(commands);
     }
     #endregion
