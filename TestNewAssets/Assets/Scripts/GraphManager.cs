@@ -271,7 +271,7 @@ public class GraphManager : MonoBehaviour
                 float xm = ((x0 + x1) / 2f);
                 float slowMult = 1f + (amplitude * ((xm - (initialParab + ccInitFinalDist) / 2f) * (xm - (initialParab + ccInitFinalDist) / 2f)) - (ccInitFinalDist / qFilter));
                 GraphSegToFfmpegArr[i + 1].slowMult = slowMult; //same equation as line renderer
-                Debug.Log("xm = " + xm + " slowmult = " + slowMult);
+                //Debug.Log("xm = " + xm + " slowmult = " + slowMult);
             }
         }
 
@@ -280,7 +280,7 @@ public class GraphManager : MonoBehaviour
         {
             tempParabEstimate += (1.0f / GraphSegToFfmpegArr[i + 1].slowMult) * GraphSegToFfmpegArr[i + 1].duration;
         }
-        Debug.Log("esitmated ParabLength = " + tempParabEstimate);
+        //Debug.Log("esitmated ParabLength = " + tempParabEstimate);
 
         //last segment = numsegs+1
         GraphSegToFfmpegArr[ProjectManager.NumSegments + 1].startTime = GraphSegToFfmpegArr[ProjectManager.NumSegments].startTime + preProcessedDelta;

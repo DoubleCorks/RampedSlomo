@@ -16,6 +16,7 @@ using System;
 using UnityEngine.Android;
 #endif
 using SimpleFileBrowser;
+using TMPro;
 
 public class ProjectManager : MonoBehaviour, IFFmpegHandler
 {
@@ -44,7 +45,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     [SerializeField] private GraphManager _graphManager;
     [SerializeField] private GameObject _inputBlocker;
     [SerializeField] private Image _progressBar;
-    [SerializeField] private Text _progressText;
+    [SerializeField] private TextMeshPro _progressText;
     
     //videoplayer conditionals
     private bool canSlide;
@@ -104,7 +105,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         filesToRemove = new HashSet<string>();
 
         //payment information
-        paidForApp = false;
+        paidForApp = true;
 
         //permissions
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -680,7 +681,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     {
         Debug.Log("CONCATENATING SECTIONS");
         Debug.Log(File.ReadAllText(vidListPath));
-        _progressText.text = "concat demuxing";
+        _progressText.text = "Concat demuxing";
         string commands = "-f&concat&-safe&0&-y&-i&" + vidListPath + "&-c:v&copy&" + HandleDirectory(vidTempDirectoryPath, CONCATENATED_SECTIONS_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -693,7 +694,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //ffmpeg -i input.flv -f s16le -acodec pcm_s16le output.raw
         //dont remove original audio file at end for testing
         //input SETUP ALL PROPERTIES OF OUTPUT output.raw
-        _progressText.text = "extracting original audio";
+        _progressText.text = "Extracting original audio";
         string commands = "-y&-i&" + _videoPlayer.url + "&-f&s16le&-c:a&pcm_s16le&-ar&44100&-ac&2&-b:a&128k&" + HandleDirectory(vidTempDirectoryPath, DECODED_ORIGINAL_AUDIO_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -703,7 +704,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// </summary>
     private void timeScaleAudioAndEncode(GraphSegToFfmpeg[] gpstffArr)
     {
-        _progressText.text = "time scale audio and encoding";
+        _progressText.text = "Time scale audio and encoding";
 
         //delete tsa.raw since it might exist? seems bad
         if (File.Exists(HandleDirectory(vidTempDirectoryPath, TIME_SCALED_AUDIO_FILENAME)))
@@ -804,7 +805,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                     int tempSampleThreshold = currSampleThreshold;
                     currSampleThreshold += (int)(processedDurations[segIndex] * 44100f);
                     int deltaThreshhold = currSampleThreshold - tempSampleThreshold;
-                    Debug.Log("i=" + i + " currSampleThreshold=" + currSampleThreshold + " segIndex=" + segIndex + " estimatedClipSecs= " + deltaThreshhold/44100f);
+                    //Debug.Log("i=" + i + " currSampleThreshold=" + currSampleThreshold + " segIndex=" + segIndex + " estimatedClipSecs= " + deltaThreshhold/44100f);
                 }
                 if(segIndex > 0 && segIndex < processedDurations.Length-1)
                 {
@@ -816,7 +817,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                         m = heightLine / widthLine; //needs to be negative
                         b = (heightLine * -1f) / 2;
                         dt = 0f;
-                        Debug.Log("currSeconds = " + (i/44100f).ToString() + " segIdx is less widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                        //Debug.Log("currSeconds = " + (i/44100f).ToString() + " segIdx is less widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
                     else if(segIndex > midIdx)
                     {
@@ -825,12 +826,12 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                         m = heightLine / widthLine; //needs to be positive
                         b = (heightLine * -1f) / 2;
                         dt = 0f;
-                        Debug.Log("currSeconds = " + (i / 44100f).ToString() + " segIdx is greater widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
+                        //Debug.Log("currSeconds = " + (i / 44100f).ToString() + " segIdx is greater widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
                     else
                     {
                         dt = 0f;
-                        Debug.Log("currSeconds = " + (i / 44100f).ToString() + " slowMult = " + gpstffArr[segIndex].slowMult);
+                        //Debug.Log("currSeconds = " + (i / 44100f).ToString() + " slowMult = " + gpstffArr[segIndex].slowMult);
                     }
 
                 }
