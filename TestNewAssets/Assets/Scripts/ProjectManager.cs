@@ -240,7 +240,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnResetGraphButtonClicked()
     {
         _graphManager.DestroyScrollGraph();
-        _graphManager.InitializeScrollGraph((float)_videoPlayer.length);
+        if(_videoPlayer.length > 0)
+            _graphManager.InitializeScrollGraph((float)_videoPlayer.length);
         if (_hamburgerMenu.activeInHierarchy)
         {
             _hamburgerMenu.SetActive(false);
