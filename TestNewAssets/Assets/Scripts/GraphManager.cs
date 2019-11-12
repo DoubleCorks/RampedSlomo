@@ -294,7 +294,7 @@ public class GraphManager : MonoBehaviour
     private void handleCurveControlObjPos(float timeKfOneEnd)
     {
         float kfOneREdgeXPos = kfOneObj.GetComponent<RectTransform>().localPosition.x + kfOneObj.GetComponent<RectTransform>().rect.width/2;
-        float lineEndXPos = (kfOneREdgeXPos + (timeKfOneEnd/initialVidTime) * screenWidth)- kfOneObj.GetComponent<RectTransform>().rect.width/2; //might be right
+        float lineEndXPos = (kfOneREdgeXPos + (timeKfOneEnd/initialVidTime) * screenWidth)- kfOneObj.GetComponent<RectTransform>().rect.width/2;
         float distKfOneEnd = lineEndXPos - kfOneREdgeXPos;
         float curveConCenterPosX = kfOneREdgeXPos + distKfOneEnd / 2;
         curveControllerObj.GetComponent<RectTransform>().localPosition = new Vector3(curveConCenterPosX, kfOneObj.GetComponent<RectTransform>().localPosition.y, -1f);
