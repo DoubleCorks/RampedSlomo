@@ -39,14 +39,16 @@ public class GraphManager : MonoBehaviour
     private float timeKfOneEnd; //time between kf1 and end of video in seconds
     private float preProcessedDelta; //time between kfZero to kfOne in seconds before dragging
 
+    //the graph seg info arr
+    private GraphSegToFfmpeg[] GraphSegToFfmpegArr;
+
     //constant vals for background scroll graph
     private static int qFilter = 1;
     private static int graphLength = 3;
     private static int numStampsOnScreen = 5; //higher the more number of stamps that fit on screen
     private static float ratingRes = 0.1f; //for 0, 0.5, 1, 1.5, 2, 2.5; could also be 0.1 or 1 or ...
 
-    //the graph seg info arr
-    public GraphSegToFfmpeg[] GraphSegToFfmpegArr;
+
     public System.Action OnGraphSegArrToFfmpegUpdated = null;
 
     // Start is called before the first frame update

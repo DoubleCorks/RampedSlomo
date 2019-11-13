@@ -117,7 +117,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private void Update()
     {
         if(!canSlide && _videoPlayer.enabled)
+        {
             _videoTrack.value = _videoPlayer.frame / (float)_videoPlayer.frameCount;
+            _videoPlayer.playbackSpeed = GetCurrentVidSpeed(_videoTrack.value);
+        }
     }
 
     private void OnDestroy()
@@ -432,6 +435,36 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         AGAlertDialog.ShowMessageDialog("Something went wrong", "Ramped Slomo does not support .mov's (coming soon) on Android, if its an mp4 and it should work " +
             "try again, or contact us masfxstudios@gmail.com", "Okay",
             () => ResetAll());
+    }
+
+    /// <summary>
+    /// Gets the speed at which the videoplayer should be playing back the video
+    /// </summary>
+    /// <param name="_vpValue"></param>
+    /// <returns></returns>
+    private float GetCurrentVidSpeed(float _vpValue)
+    {
+        float currentTime = _vpValue * (float)_videoPlayer.length;
+
+        //find closest time in graphSegToFFmpeg table
+        float closestSegSpeed = 1.0f;
+        float minDifference = int.MinValue;
+        if(_graphManager.GetSegToFfmpegData() != null)
+        {
+            for (int i = 0; i < _graphManager.GetSegToFfmpegData().Length; i++)
+            {
+                float difference = _graphManager.GetSegToFfmpegData()[i].startTime - currentTime;
+                //Debug.Log("difference = " + difference);
+                if (difference < 0 && difference > minDifference)
+                {
+                    minDifference = difference;
+                    closestSegSpeed = _graphManager.GetSegToFfmpegData()[i].slowMult;
+                    //Debug.Log("minDifference = " + minDifference + " closestSeg = " + i + " " + _graphManager.GetSegToFfmpegData()[i].startTime + " " + _graphManager.GetSegToFfmpegData()[i].slowMult);
+                }
+            }
+        }
+
+        return closestSegSpeed;
     }
 
     /// <summary>
@@ -753,18 +786,17 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             }
             else
             {
-                //shallow abs
+                //middle is a shallow parab, otherwise sound is bad
                 float w = nextMultipleOf60ths;
                 Debug.Log("nextMultipleOf60ths = " + nextMultipleOf60ths);
                 midH = w / 2f;
-                midK = -.025f; //change this to deepen parabola
+                midK = -.0125f; //change this to deepen parabola
                 midA = (-1f * midK) / (midH * midH);
                 float integralMidParab = (4f * midH * midK) / 3f;
                 processedDurations[i] = nextMultipleOf60ths-integralMidParab;
                 slomoDuration += nextMultipleOf60ths-integralMidParab;
                 Debug.Log("after integration = " + (nextMultipleOf60ths - integralMidParab));
             }
-
         }
 
         //arguments
