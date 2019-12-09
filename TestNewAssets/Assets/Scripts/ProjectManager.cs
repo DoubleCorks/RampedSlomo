@@ -12,14 +12,17 @@ using UnityEditor;
 using System.Reflection;
 using Priority_Queue;
 using System;
+using UnityEngine.Audio;
 #if PLATFORM_ANDROID
 using UnityEngine.Android;
 #endif
 using SimpleFileBrowser;
 using TMPro;
+using UnityEngine.Networking;
 
 public class ProjectManager : MonoBehaviour, IFFmpegHandler
 {
+    //file names and directories
     public const string RAMPED_SLOMO_EDITED_DIRECTORY = "RampedSlomoEdited";
     public const string RAMPED_SLOMO_TEMP_DIRECTORY = ".RampedSlomoTemp";
     public const string VID_FILES_TXT = "vidFiles.txt";
@@ -28,6 +31,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public const string CONCATENATED_SECTIONS_FILENAME = "concatenatedSections.mp4";
     public const string WATERMARK_FILENAME = "MASfXWatermark.png";
     public const string DECODED_ORIGINAL_AUDIO_FILENAME = "Doa.raw";
+    public const string DECODED_PREVIEW_AUDIO_FILENAME = "Dpa.wav";
     public const string TIME_SCALED_AUDIO_FILENAME = "Tsa.raw";
     public const string TIME_SCALED_ENCODED_AUDIO_FILENAME = "TsaEncoded.mp3";
     public const string FINAL_VIDEO_FILENAME = "rampedSlomo";
@@ -42,6 +46,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     [SerializeField] private GameObject _hamburgerMenu;
     [SerializeField] private GameObject _processButton;
     [SerializeField] private Slider _videoTrack;
+    [SerializeField] private AudioSource _audioSource;
     [SerializeField] private GraphManager _graphManager;
     [SerializeField] private GameObject _inputBlocker;
     [SerializeField] private Image _progressBar;
@@ -63,6 +68,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private delegate void FFmpegTask();
     private SimplePriorityQueue<FFmpegTask> taskPQueue;
     private float progressIncrementer;
+    private bool initialAudioTask;
 
     //pay info
     private bool paidForApp;
@@ -84,6 +90,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         wasPlaying = false;
         _inputBlocker.SetActive(false);
         _videoPlayer.targetTexture.Release();
+        _videoPlayer.enabled = false;
         _videoTrack.gameObject.SetActive(false);
         _hamburgerMenu.SetActive(false);
 
@@ -103,6 +110,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         taskPQueue = new SimplePriorityQueue<FFmpegTask>();
         progressIncrementer = 0f;
         filesToRemove = new HashSet<string>();
+        initialAudioTask = false;
 
         //payment information
         paidForApp = true;
@@ -119,7 +127,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         if(!canSlide && _videoPlayer.enabled)
         {
             _videoTrack.value = _videoPlayer.frame / (float)_videoPlayer.frameCount;
-            _videoPlayer.playbackSpeed = GetCurrentVidSpeed(_videoTrack.value);
+            if(_videoPlayer.canSetPlaybackSpeed)
+            {
+                _videoPlayer.playbackSpeed = _graphManager.GetSpeed(_videoTrack.value, 0f);
+                _audioSource.pitch = _graphManager.GetSpeed(_videoTrack.value, 0f);
+            }
+
+            //_audioMixer.SetFloat("pitchParam", _graphManager.GetSpeed(_videoTrack.value, 0f));
         }
     }
 
@@ -140,6 +154,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         {
             _playButton.SetActive(true);
             _pauseButton.SetActive(false);
+            _audioSource.Pause();
             _videoPlayer.Pause();
             canSlide = true;
         }
@@ -148,9 +163,12 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnVideoSliderPointerUp()
     {
         float frame = (float)_videoTrack.value * (float)_videoPlayer.frameCount;
+        float vidTime = (float)_videoTrack.value * (float)_videoPlayer.length;
         _videoPlayer.frame = (long)frame;
         if(wasPlaying)
         {
+            _audioSource.time = vidTime;
+            _audioSource.Play();
             _playButton.SetActive(false);
             _pauseButton.SetActive(true);
             canSlide = false;
@@ -159,6 +177,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         else
         {
             _videoPlayer.Play();
+            _audioSource.Pause();
             _videoPlayer.Pause();
             canSlide = false;
         }
@@ -169,6 +188,9 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         Debug.Log("OnPlayButtonClick");
         if (_videoPlayer.isPrepared)
         {
+            float vidTime = (float)_videoTrack.value * (float)_videoPlayer.length;
+            _audioSource.time = vidTime;
+            _audioSource.Play();
             _playButton.SetActive(false);
             _pauseButton.SetActive(true);
             wasPlaying = true;
@@ -183,6 +205,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _pauseButton.SetActive(false);
         wasPlaying = false;
         _videoPlayer.Pause();
+        _audioSource.Pause();
     }
 
     public void OnProcessVideoClicked()
@@ -303,18 +326,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             _progressBar.fillAmount += progressIncrementer;
             taskPQueue.Dequeue()();
         }
+        else if(initialAudioTask)
+        {
+            //report initialAudioTask is done, call func to initialize everything else... ew
+            StartCoroutine(VideoEditingReady());
+        }
         else
         {
-            Debug.Log("queue is empty, removing uneeded files");
-            foreach (string s in filesToRemove)
-            {
-                if (File.Exists(s))
-                {
-                    File.Delete(s);
-                    Debug.Log("File:" + s + " deleted");
-                }
-            }
-            Debug.Log("done");
             ResetAll();
         }
     }
@@ -396,25 +414,53 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// <param name="_vp"></param>
     private void VideoPrepareCompleted(VideoPlayer _vp)
     {
-        //thumbnail
+        //call ffmpeg task to extract audio as wav to REALLY prepare video for editing
+        FFmpegParser.Handler = this;
+        _inputBlocker.SetActive(true);
+        _progressBar.fillAmount = 0;
+        progressIncrementer = 1f / taskPQueue.Count;
+        initialAudioTask = true;
+        taskPQueue.Dequeue()();
+    }
+
+    private IEnumerator VideoEditingReady()
+    {
+        //create audioClip
+        AudioClip previewClip = null;
+        using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(HandleDirectory(vidTempDirectoryPath, DECODED_PREVIEW_AUDIO_FILENAME), AudioType.WAV))
+        {
+            yield return www.SendWebRequest();
+            if (www.isNetworkError)
+            {
+                Debug.Log(www.error);
+            }
+            else
+            {
+                previewClip = DownloadHandlerAudioClip.GetContent(www);
+            }
+        }
+
+        //videoPlayer and thumbnail
+        initialAudioTask = false;
         Debug.Log("fake thumbnail");
         _videoTrack.gameObject.SetActive(true);
-        _vp.time = 0;
-        _vp.Play();
-        _vp.Pause();
+        _videoPlayer.time = 0;
+        _videoPlayer.Play();
+        _videoPlayer.Pause();
+        _videoPlayer.EnableAudioTrack(0, false);
+        _audioSource.clip = previewClip;
 
         //ffmpeg
         Debug.Log("ffmpeg");
         ClearAllTxt();
         filesToRemove.Clear();
-        FFmpegParser.Handler = this;
         _processButton.SetActive(true);
         _playButton.SetActive(true);
         _initialChooseButton.SetActive(false);
 
         //graph
         Debug.Log("graph");
-        _graphManager.InitializeScrollGraph((float)_vp.length);
+        _graphManager.InitializeScrollGraph((float)_videoPlayer.length);
 
         //clean up added files
         filesToRemove.Add(watermarkPath);
@@ -423,6 +469,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         filesToRemove.Add(HandleDirectory(vidTempDirectoryPath, TIME_SCALED_ENCODED_AUDIO_FILENAME));
         filesToRemove.Add(HandleDirectory(vidTempDirectoryPath, CONCATENATED_SECTIONS_FILENAME));
         filesToRemove.Add(HandleDirectory(vidTempDirectoryPath, DECODED_ORIGINAL_AUDIO_FILENAME));
+        filesToRemove.Add(HandleDirectory(vidTempDirectoryPath, DECODED_PREVIEW_AUDIO_FILENAME));
+
+        //finally done, remove input blocker
+        _inputBlocker.SetActive(false);
     }
 
     private void VideoErrorRecieved(VideoPlayer _vp, string msg)
@@ -528,7 +578,9 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 + vidListPath + "\nwatermarkPath=" + watermarkPath);
 
             //videoplayer setup
+            taskPQueue.Enqueue(() => getAndCreateVidWav(vidPath), 1);
             _videoPlayer.enabled = true;
+            _videoPlayer.source = VideoSource.Url;
             _videoPlayer.url = vidPath;
             _videoPlayer.Prepare();
         }
@@ -557,7 +609,9 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 + vidListPath + "\nwatermarkPath=" + watermarkPath);
 
             //videoplayer setup
+            taskPQueue.Enqueue(() => getAndCreateVidWav(vidPath), 1);
             _videoPlayer.enabled = true;
+            _videoPlayer.source = VideoSource.Url;
             _videoPlayer.url = vidPath;
             _videoPlayer.Prepare();
         }, error => AGUIMisc.ShowToast("Cancelled picking video file: " + error), "video/mp4");
@@ -643,6 +697,18 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
 
         //combine it all - priority 4
         taskPQueue.Enqueue(() => CombineWithStripe(), 4);   
+    }
+
+    /// <summary>
+    /// Uses the url (filesystem or https) of a video to extract audio from video as wav
+    /// </summary>
+    /// <param name="fileName"></param>
+    private void getAndCreateVidWav(string fileName)
+    {
+        WriteStringToTxtFile(HandleDirectory(vidTempDirectoryPath, fileName));
+        _progressText.text = "Preparing for playback";
+        string commands = "-y&-i&" + _videoPlayer.url + "&-vn&-c:a&pcm_s16le&-ar&44100&-ac&2&-b:a&128k&" + HandleDirectory(vidTempDirectoryPath, DECODED_PREVIEW_AUDIO_FILENAME);
+        FFmpegCommands.AndDirectInput(commands);
     }
 
     /// <summary>

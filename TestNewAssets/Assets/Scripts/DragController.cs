@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 public class DragController : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
+    public System.Action<Vector2> OnStartDragged = null;
     public System.Action<Vector2> OnButtonDragged = null;
     public System.Action<Vector2> OnEndDragged = null;
 
@@ -13,6 +14,9 @@ public class DragController : MonoBehaviour, IBeginDragHandler, IDragHandler, IE
         // TODO: OPTIONAL get the mouse position offset within the button to drag using the same ScreenPointToLocal and save that
         //   then add that to the anchoredPosition during OnDrag
         //   otherwise drags by center of button (assuming the anchor is center)
+        RectTransform rt = transform as RectTransform;
+        if (OnStartDragged != null)
+            OnStartDragged(rt.anchoredPosition);
     }
 
     public void OnDrag(PointerEventData eventData)
