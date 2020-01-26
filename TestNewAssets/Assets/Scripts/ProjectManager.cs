@@ -132,7 +132,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 _videoPlayer.playbackSpeed = _graphManager.GetSpeed(_videoTrack.value, 0f);
                 _audioSource.pitch = _graphManager.GetSpeed(_videoTrack.value, 0f);
             }
-
+           // Debug.Log(_videoPlayer.playbackSpeed);
             //_audioMixer.SetFloat("pitchParam", _graphManager.GetSpeed(_videoTrack.value, 0f));
         }
     }
@@ -427,16 +427,22 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     {
         //create audioClip
         AudioClip previewClip = null;
-        using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(HandleDirectory(vidTempDirectoryPath, DECODED_PREVIEW_AUDIO_FILENAME), AudioType.WAV))
+        string previewFilepath = HandleDirectory(vidTempDirectoryPath, DECODED_PREVIEW_AUDIO_FILENAME);
+        Debug.Log("previewFilepath = " + previewFilepath);
+        using (UnityWebRequest uwr = UnityWebRequestMultimedia.GetAudioClip(previewFilepath, AudioType.WAV))
         {
-            yield return www.SendWebRequest();
-            if (www.isNetworkError)
+            uwr.uri = new Uri(uwr.uri.AbsoluteUri.Replace("http://localhost", "file://"));
+            uwr.url = uwr.url.Replace("http://localhost", "file://");
+            yield return uwr.SendWebRequest();
+            if (uwr.isNetworkError || uwr.isHttpError)
             {
-                Debug.Log(www.error);
+                Debug.Log(uwr.error);
             }
             else
             {
-                previewClip = DownloadHandlerAudioClip.GetContent(www);
+                Debug.Log("Loaded file from " + previewFilepath.Replace("/", "\\"));
+                previewClip = DownloadHandlerAudioClip.GetContent(uwr); //could report an error
+                previewClip.name = "previewAudio";
             }
         }
 
@@ -447,6 +453,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _videoPlayer.time = 0;
         _videoPlayer.Play();
         _videoPlayer.Pause();
+        _videoPlayer.playbackSpeed = 1.0f;
         _videoPlayer.EnableAudioTrack(0, false);
         _audioSource.clip = previewClip;
 
@@ -454,6 +461,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         Debug.Log("ffmpeg");
         ClearAllTxt();
         filesToRemove.Clear();
+        taskPQueue.Clear();
         _processButton.SetActive(true);
         _playButton.SetActive(true);
         _initialChooseButton.SetActive(false);
@@ -578,6 +586,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 + vidListPath + "\nwatermarkPath=" + watermarkPath);
 
             //videoplayer setup
+            taskPQueue.Clear();
             taskPQueue.Enqueue(() => getAndCreateVidWav(vidPath), 1);
             _videoPlayer.enabled = true;
             _videoPlayer.source = VideoSource.Url;
@@ -609,6 +618,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 + vidListPath + "\nwatermarkPath=" + watermarkPath);
 
             //videoplayer setup
+            taskPQueue.Clear();
             taskPQueue.Enqueue(() => getAndCreateVidWav(vidPath), 1);
             _videoPlayer.enabled = true;
             _videoPlayer.source = VideoSource.Url;
