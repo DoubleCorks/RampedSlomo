@@ -13,7 +13,6 @@ public class GraphManager : MonoBehaviour
     [SerializeField] private GameObject _scrollGraphPrefab;
     [SerializeField] private GameObject _timeStampPrefab;
     [SerializeField] private GameObject _guidesObj;
-    [SerializeField] private GameObject _placeHolderGraphObj;
 
     private ScrollRect scrollGraphRect;
     private GuidesController guidesController;
@@ -73,7 +72,6 @@ public class GraphManager : MonoBehaviour
         //no graph on start
         _scrollGraphView.SetActive(false); //doesnt actually do anything visually
         _guidesObj.SetActive(false);
-        _placeHolderGraphObj.SetActive(true);
     }
 
     private void OnDestroy()
@@ -323,7 +321,6 @@ public class GraphManager : MonoBehaviour
         //make graph visible and children accesible
         _scrollGraphView.SetActive(true);
         _guidesObj.SetActive(true);
-        _placeHolderGraphObj.SetActive(false);
 
         //generate a scroll graph with scaling and timeline
         initialVidTime = initVidTime;
@@ -365,7 +362,6 @@ public class GraphManager : MonoBehaviour
         //make graph visible and children accesible
         _scrollGraphView.SetActive(false);
         _guidesObj.SetActive(false);
-        _placeHolderGraphObj.SetActive(true);
     }
 
     public float GetSpeed(float value, float offset)

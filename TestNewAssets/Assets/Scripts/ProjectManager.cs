@@ -45,13 +45,17 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     [SerializeField] private GameObject _initialChooseButton;
     [SerializeField] private GameObject _hamburgerMenu;
     [SerializeField] private GameObject _processButton;
+    [SerializeField] private GameObject _creditsButton;
+    [SerializeField] private GameObject _doneButton;
     [SerializeField] private Slider _videoTrack;
     [SerializeField] private AudioSource _audioSource;
     [SerializeField] private GraphManager _graphManager;
     [SerializeField] private GameObject _inputBlocker;
     [SerializeField] private Image _progressBar;
     [SerializeField] private TextMeshPro _progressText;
-    
+    [SerializeField] private TextMeshPro _percentText;
+
+
     //videoplayer conditionals
     private bool canSlide;
     private bool wasPlaying;
@@ -88,6 +92,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _initialChooseButton.SetActive(true);
         canSlide = false;
         wasPlaying = false;
+        _doneButton.SetActive(false);
+        _percentText.text = "0%";
         _inputBlocker.SetActive(false);
         _videoPlayer.targetTexture.Release();
         _videoPlayer.enabled = false;
@@ -240,6 +246,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public void OnChooseVideoClicked()
     {
         Debug.Log("onChooseButtonClicked");
+        _percentText.text = "0%";
         if (_hamburgerMenu.activeInHierarchy)
         {
             _hamburgerMenu.SetActive(false);
@@ -287,6 +294,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         }
     }
 
+    public void OnDoneButtonClicked()
+    {
+        _doneButton.SetActive(false);
+        _inputBlocker.SetActive(false);
+        _percentText.text = "0%";
+    }
+
     #endregion
 
     #region FFMPEG callbacks
@@ -324,6 +338,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         if (taskPQueue.Count > 0)
         {
             _progressBar.fillAmount += progressIncrementer;
+            _percentText.text = (System.Math.Round(_progressBar.fillAmount, 2)*100) + "%";
             taskPQueue.Dequeue()();
         }
         else if(initialAudioTask)
@@ -416,11 +431,11 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     {
         //call ffmpeg task to extract audio as wav to REALLY prepare video for editing
         FFmpegParser.Handler = this;
-        _inputBlocker.SetActive(true);
         _progressBar.fillAmount = 0;
         progressIncrementer = 1f / taskPQueue.Count;
         initialAudioTask = true;
         taskPQueue.Dequeue()();
+        _inputBlocker.SetActive(true);
     }
 
     private IEnumerator VideoEditingReady()
@@ -480,7 +495,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         filesToRemove.Add(HandleDirectory(vidTempDirectoryPath, DECODED_PREVIEW_AUDIO_FILENAME));
 
         //finally done, remove input blocker
-        _inputBlocker.SetActive(false);
+        //_inputBlocker.SetActive(false);
+        _progressBar.fillAmount = 1f;
+        _percentText.text = "100%";
+        _doneButton.SetActive(true);
     }
 
     private void VideoErrorRecieved(VideoPlayer _vp, string msg)
@@ -555,7 +573,11 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _pauseButton.SetActive(false);
         _initialChooseButton.SetActive(true);
         _processButton.SetActive(false);
-        _inputBlocker.SetActive(false);
+        //_inputBlocker.SetActive(false);
+        _progressBar.fillAmount = 1f;
+        _percentText.text = "100%";
+        _doneButton.SetActive(true);
+        _videoTrack.gameObject.SetActive(false);
         _videoTrack.value = 0;
 
         //graph destruction
