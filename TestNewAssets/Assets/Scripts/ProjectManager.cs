@@ -99,6 +99,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _videoPlayer.enabled = false;
         _videoTrack.gameObject.SetActive(false);
         _hamburgerMenu.SetActive(false);
+        _creditsButton.SetActive(true);
+        _creditsButton.transform.GetChild(1).gameObject.SetActive(false);
 
         //vid player callbacks
         _videoPlayer.prepareCompleted += VideoPrepareCompleted;
@@ -299,6 +301,16 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _doneButton.SetActive(false);
         _inputBlocker.SetActive(false);
         _percentText.text = "0%";
+    }
+
+    public void OnCreditsButtonClicked()
+    {
+        _creditsButton.transform.GetChild(1).gameObject.SetActive(true);
+    }
+
+    public void OnCreditsDoneButtonClicked()
+    {
+        _creditsButton.transform.GetChild(1).gameObject.SetActive(false);
     }
 
     #endregion
