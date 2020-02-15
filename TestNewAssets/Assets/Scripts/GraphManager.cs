@@ -193,7 +193,11 @@ public class GraphManager : MonoBehaviour
 
         //calculate new lengths based on drag
         float pDleta = p.x - initialClickPos.x;
-        draggedDistance = (pDleta/screenWidth)*initialVidTime; //how much we dragged line in seconds
+        draggedDistance = (pDleta/screenWidth)*initialVidTime; //how much we dragged line in seconds, its actually current max slowmult..... HOW
+        if (draggedDistance >= .8f)
+            draggedDistance = .8f;
+        else if (draggedDistance <= -.8f)
+            draggedDistance = -.8f;
         updateMainLineRenderer(true, draggedDistance);
         updateGraphSegToFfmpegArr(true, draggedDistance);
 
@@ -276,7 +280,7 @@ public class GraphManager : MonoBehaviour
                 float sM = 1f + ((4 * ccInitFinalDist * xm * (0 - initialParab - ccInitFinalDist + xm)) / (qFilter * ((initialParab + ccInitFinalDist) * (initialParab + ccInitFinalDist))));
                 float slowMult = 1f + (amplitude * ((xm - (initialParab + ccInitFinalDist) / 2f) * (xm - (initialParab + ccInitFinalDist) / 2f)) - (ccInitFinalDist / qFilter));
                 GraphSegToFfmpegArr[i + 1].slowMult = sM; //same equation as line renderer
-                Debug.Log("xm = " + xm + " slowmult = " + sM);
+                //Debug.Log("xm = " + xm + " slowmult = " + sM);
             }
         }
 

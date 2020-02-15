@@ -88,19 +88,22 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //media player ui
         _playButton.SetActive(false);
         _pauseButton.SetActive(false);
-        _processButton.SetActive(false);
-        _initialChooseButton.SetActive(true);
         canSlide = false;
         wasPlaying = false;
-        _doneButton.SetActive(false);
-        _percentText.text = "0%";
-        _inputBlocker.SetActive(false);
-        _videoPlayer.targetTexture.Release();
+        //_videoPlayer.targetTexture.Release();
         _videoPlayer.enabled = false;
+        _videoPlayer.gameObject.SetActive(false);
         _videoTrack.gameObject.SetActive(false);
+
+        //general ui
+        _initialChooseButton.SetActive(true);
+        _processButton.SetActive(false);
         _hamburgerMenu.SetActive(false);
         _creditsButton.SetActive(true);
         _creditsButton.transform.GetChild(1).gameObject.SetActive(false);
+        _doneButton.SetActive(false);
+        _percentText.text = "0%";
+        _inputBlocker.SetActive(false);
 
         //vid player callbacks
         _videoPlayer.prepareCompleted += VideoPrepareCompleted;
@@ -137,8 +140,9 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             _videoTrack.value = _videoPlayer.frame / (float)_videoPlayer.frameCount;
             if(_videoPlayer.canSetPlaybackSpeed)
             {
-                _videoPlayer.playbackSpeed = _graphManager.GetSpeed(_videoTrack.value, 0f);
-                _audioSource.pitch = _graphManager.GetSpeed(_videoTrack.value, 0f);
+                float curSpeed = _graphManager.GetSpeed(_videoTrack.value, 0f);
+                _videoPlayer.playbackSpeed = curSpeed;
+                _audioSource.pitch = curSpeed;
             }
            // Debug.Log(_videoPlayer.playbackSpeed);
             //_audioMixer.SetFloat("pitchParam", _graphManager.GetSpeed(_videoTrack.value, 0f));
@@ -591,6 +595,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         _doneButton.SetActive(true);
         _videoTrack.gameObject.SetActive(false);
         _videoTrack.value = 0;
+        _videoPlayer.gameObject.SetActive(false);
 
         //graph destruction
         _graphManager.DestroyScrollGraph();
@@ -622,6 +627,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             //videoplayer setup
             taskPQueue.Clear();
             taskPQueue.Enqueue(() => getAndCreateVidWav(vidPath), 1);
+            _videoPlayer.gameObject.SetActive(true);
             _videoPlayer.enabled = true;
             _videoPlayer.source = VideoSource.Url;
             _videoPlayer.url = vidPath;
@@ -652,8 +658,10 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
                 + vidListPath + "\nwatermarkPath=" + watermarkPath);
 
             //videoplayer setup
+            _videoPlayer.gameObject.SetActive(true);
             taskPQueue.Clear();
             taskPQueue.Enqueue(() => getAndCreateVidWav(vidPath), 1);
+            _videoPlayer.gameObject.SetActive(true);
             _videoPlayer.enabled = true;
             _videoPlayer.source = VideoSource.Url;
             _videoPlayer.url = vidPath;

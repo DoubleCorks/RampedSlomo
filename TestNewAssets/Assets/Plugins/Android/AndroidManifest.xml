@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.deadmosquitogames.androidgoodiesdemo"
+          xmlns:tools="http://schemas.android.com/tools"
           android:versionName="1.0" android:versionCode="1" android:installLocation="preferExternal" >
     <supports-screens android:smallScreens="true" android:normalScreens="true" android:largeScreens="true"
                       android:xlargeScreens="true" android:anyDensity="true"/>
@@ -41,7 +42,8 @@
     </application>
 
     <!-- PERMISSIONS -->
-    <uses-permission android:name="android.permission.INTERNET"/> <!-- Required for picking a video off the device? -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <!-- END ANDROID GOODIES TEST APP PERMISSIONS -->

@@ -158,7 +158,7 @@ PlayerSettings:
   applicationIdentifier:
     Android: com.rampedslomoapp.pro.edit.video.slowmo
   buildNumber: {}
-  AndroidBundleVersionCode: 101
+  AndroidBundleVersionCode: 102
   AndroidMinSdkVersion: 16
   AndroidTargetSdkVersion: 0
   AndroidPreferredInstallLocation: 1
@@ -346,7 +346,7 @@ PlayerSettings:
       m_SubKind: 
     - m_Textures:
       - {fileID: 2800000, guid: 43377d1f29e42f2449e4e51aa38c26ff, type: 3}
-      - {fileID: 2800000, guid: 3013f9f8839da234499f5eba4e3ec602, type: 3}
+      - {fileID: 2800000, guid: 4ea2978a160af414b97f2d4fb5bf6158, type: 3}
       m_Width: 432
       m_Height: 432
       m_Kind: 2
