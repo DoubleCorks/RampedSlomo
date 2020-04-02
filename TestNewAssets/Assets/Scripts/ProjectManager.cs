@@ -26,8 +26,8 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     public const string RAMPED_SLOMO_EDITED_DIRECTORY = "RampedSlomoEdited";
     public const string RAMPED_SLOMO_TEMP_DIRECTORY = ".RampedSlomoTemp";
     public const string VID_FILES_TXT = "vidFiles.txt";
-    public const string TRIMMED_SECTION_ONE_FILENAME = "trimmedSectionOne.mov";
-    public const string TRIMMED_SECTION_THREE_FILENAME = "trimmedSectionThree.mov";
+    public const string TRIMMED_SECTION_ONE_FILENAME = "trimmedSectionOne.mp4";
+    public const string TRIMMED_SECTION_THREE_FILENAME = "trimmedSectionThree.mp4";
     public const string CONCATENATED_SECTIONS_FILENAME = "concatenatedSections.mp4";
     public const string WATERMARK_FILENAME = "MASfXWatermark.png";
     public const string DECODED_ORIGINAL_AUDIO_FILENAME = "Doa.raw";
@@ -729,7 +729,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             float ss = gpstffArr[e_idx + 1].startTime;
             float d = gpstffArr[e_idx + 1].duration;
             float sM = gpstffArr[e_idx + 1].slowMult;
-            string fName = "slowSection" + e_idx + ".mov";
+            string fName = "slowSection" + e_idx + ".mp4";
             taskPQueue.Enqueue(() => slowSection(ss, d, fName, 1f/sM, paidForApp), 1);
             //Debug.Log("approximated processed duration for " + fName +" is =" + nextMultipleOf60ths);
         }
@@ -862,7 +862,6 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     private IEnumerator GetVidTimes(GraphSegToFfmpeg[] gpstffArr)
     {
         _progressText.text = "Time scale audio and encoding";
-
         //delete tsa.raw since it might exist? seems bad
         if (File.Exists(HandleDirectory(vidTempDirectoryPath, TIME_SCALED_AUDIO_FILENAME)))
         {
@@ -896,23 +895,27 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //alright screw that, how about GET processedDurations from already rendered video clips inside .RampedSlomoTemp
         GameObject tempDSPGO = new GameObject();
         VideoPlayer tempVidPlayer = tempDSPGO.AddComponent<VideoPlayer>();
-        tempVidPlayer.source = VideoSource.Url;
-
         //pattern:
         //assign url
         //prepare
         //wait
         //get duration
         //stop (reset isPrepared)
-
+        string sometempfp = HandleDirectory(vidTempDirectoryPath, TRIMMED_SECTION_ONE_FILENAME);
+        Debug.Log(sometempfp);
+        tempVidPlayer.source = VideoSource.Url;
+        tempVidPlayer.url = sometempfp;
         //trimmed section 1
-        tempVidPlayer.url = HandleDirectory(vidTempDirectoryPath, TRIMMED_SECTION_ONE_FILENAME);
+        //Debug.Log("using: " + sometempfp);
+        //tempVidPlayer.url = sometempfp;
         tempVidPlayer.Prepare();
         //Wait until video is prepared
         while (!tempVidPlayer.isPrepared)
         {
+            //Debug.Log("Preparing trimmed section 1 at '" + tempVidPlayer.url + "'");
             yield return null;
         }
+        Debug.Log("Done looking at trimmed section 1");
         processedDurations[0] = (float)tempVidPlayer.length;
         processedSlowMults[0] = 1f/((float)tempVidPlayer.length/gpstffArr[0].duration);
         tempVidPlayer.Stop(); //destroy all internal resources such as textures or buffered content and make isPrepared false
@@ -921,13 +924,14 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         float slomoDuration = 0.0f;
         for (int i = 0; i < NumSegments; i++)
         {
-            string slowFileName = "slowSection" + i + ".mov";
+            string slowFileName = "slowSection" + i + ".mp4";
             tempVidPlayer.url = HandleDirectory(vidTempDirectoryPath, slowFileName);
             tempVidPlayer.Prepare();
             while (!tempVidPlayer.isPrepared)
             {
                 yield return null;
             }
+            Debug.Log("Done looking at " + slowFileName);
             slomoDuration += (float)tempVidPlayer.length;
             processedDurations[i + 1] = (float)tempVidPlayer.length;
             processedSlowMults[i + 1] = 1f/((float)tempVidPlayer.length / gpstffArr[i + 1].duration);
@@ -942,6 +946,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         {
             yield return null;
         }
+        Debug.Log("Done looking at trimmed section 3");
         processedDurations[gpstffArr.Length - 1] = (float)tempVidPlayer.length;
         processedSlowMults[gpstffArr.Length - 1] = 1f/((float)tempVidPlayer.length / gpstffArr[gpstffArr.Length - 1].duration);
         tempVidPlayer.Stop(); //destroy all internal resources such as textures or buffered content and make isPrepared false
