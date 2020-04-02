@@ -856,6 +856,11 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
     /// </summary>
     private void timeScaleAudioAndEncode(GraphSegToFfmpeg[] gpstffArr)
     {
+        StartCoroutine(GetVidTimes(gpstffArr));
+    }
+
+    private IEnumerator GetVidTimes(GraphSegToFfmpeg[] gpstffArr)
+    {
         _progressText.text = "Time scale audio and encoding";
 
         //delete tsa.raw since it might exist? seems bad
@@ -863,17 +868,17 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         {
             File.Delete(HandleDirectory(vidTempDirectoryPath, TIME_SCALED_AUDIO_FILENAME));
         }
-        
+
         //making doas -doa.raw is overwritten every time so its okay
         byte[] doaBytes = File.ReadAllBytes(HandleDirectory(vidTempDirectoryPath, DECODED_ORIGINAL_AUDIO_FILENAME));
         int numSamplesPerChannel = (doaBytes.Length / 2) / 2; //doabytes/2 = total samples. total samples/2 = samples per channel
         Int16[] doaLeft = new Int16[numSamplesPerChannel];
         Int16[] doaRight = new Int16[numSamplesPerChannel];
-        Debug.Log("numSamplesPerChannel = " + numSamplesPerChannel);
+        //Debug.Log("numSamplesPerChannel = " + numSamplesPerChannel);
 
         //making doa left and doa right channels
         int j = 0;
-        for (int i = 0; i < doaBytes.Length; i+=4)
+        for (int i = 0; i < doaBytes.Length; i += 4)
         {
             short leftVal = BitConverter.ToInt16(doaBytes, i);
             short rightVal = BitConverter.ToInt16(doaBytes, i + 2);
@@ -881,60 +886,94 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             doaRight[j] = rightVal;
             j++;
         }
-       
+
         //make arguments for tsas
         float[] processedDurations = new float[gpstffArr.Length]; //actual approx duration of each segment in seconds
-        int midIdx = gpstffArr.Length / 2;
-        float midA = 0.0f;
-        float midH = 0.0f;
-        float midK = 0.0f;
+        float[] processedSlowMults = new float[gpstffArr.Length]; //actual approx slowmult of each segment
+        int midIdx = (gpstffArr.Length / 2); //(initial at 0) (4 segs 1234) (mid 5) (4 segs 6789) (final at 10) = 11 segs
 
         //calculate all processedDurations
-        float slomoDuration = 0.0f;
-        for (int i = 0; i < gpstffArr.Length; i++)
+        //alright screw that, how about GET processedDurations from already rendered video clips inside .RampedSlomoTemp
+        GameObject tempDSPGO = new GameObject();
+        VideoPlayer tempVidPlayer = tempDSPGO.AddComponent<VideoPlayer>();
+        tempVidPlayer.source = VideoSource.Url;
+
+        //pattern:
+        //assign url
+        //prepare
+        //wait
+        //get duration
+        //stop (reset isPrepared)
+
+        //trimmed section 1
+        tempVidPlayer.url = HandleDirectory(vidTempDirectoryPath, TRIMMED_SECTION_ONE_FILENAME);
+        tempVidPlayer.Prepare();
+        //Wait until video is prepared
+        while (!tempVidPlayer.isPrepared)
         {
-            float ds = (gpstffArr[i].duration) * (1f / gpstffArr[i].slowMult); //approx duration of processed segment in seconds
-            float nextMultipleOf60ths = (int)((ds * 60f) + 1) / 60f; //actual duration??
-            if (i != midIdx)
-            {
-                processedDurations[i] = nextMultipleOf60ths+.01667f;
-                //Debug.Log("processedDuration " + i + " ="+nextMultipleOf60ths);
-                if (i > 0 && i < gpstffArr.Length - 1)
-                    slomoDuration += nextMultipleOf60ths;
-            }
-            else
-            {
-                //middle is a shallow parab, otherwise sound is bad
-                float w = nextMultipleOf60ths;
-                Debug.Log("nextMultipleOf60ths = " + nextMultipleOf60ths);
-                midH = w / 2f;
-                midK = -.0125f; //change this to deepen parabola
-                midA = (-1f * midK) / (midH * midH);
-                float integralMidParab = (4f * midH * midK) / 3f;
-                processedDurations[i] = nextMultipleOf60ths-integralMidParab;
-                slomoDuration += nextMultipleOf60ths-integralMidParab;
-                Debug.Log("after integration = " + (nextMultipleOf60ths - integralMidParab));
-            }
+            yield return null;
         }
+        processedDurations[0] = (float)tempVidPlayer.length;
+        processedSlowMults[0] = 1f/((float)tempVidPlayer.length/gpstffArr[0].duration);
+        tempVidPlayer.Stop(); //destroy all internal resources such as textures or buffered content and make isPrepared false
+
+        //slomo sections...alright this might fail
+        float slomoDuration = 0.0f;
+        for (int i = 0; i < NumSegments; i++)
+        {
+            string slowFileName = "slowSection" + i + ".mov";
+            tempVidPlayer.url = HandleDirectory(vidTempDirectoryPath, slowFileName);
+            tempVidPlayer.Prepare();
+            while (!tempVidPlayer.isPrepared)
+            {
+                yield return null;
+            }
+            slomoDuration += (float)tempVidPlayer.length;
+            processedDurations[i + 1] = (float)tempVidPlayer.length;
+            processedSlowMults[i + 1] = 1f/((float)tempVidPlayer.length / gpstffArr[i + 1].duration);
+            tempVidPlayer.Stop();
+        }
+
+        //trimmed section 3
+        tempVidPlayer.url = HandleDirectory(vidTempDirectoryPath, TRIMMED_SECTION_THREE_FILENAME);
+        tempVidPlayer.Prepare();
+        //Wait until video is prepared
+        while (!tempVidPlayer.isPrepared)
+        {
+            yield return null;
+        }
+        processedDurations[gpstffArr.Length - 1] = (float)tempVidPlayer.length;
+        processedSlowMults[gpstffArr.Length - 1] = 1f/((float)tempVidPlayer.length / gpstffArr[gpstffArr.Length - 1].duration);
+        tempVidPlayer.Stop(); //destroy all internal resources such as textures or buffered content and make isPrepared false
+        Destroy(tempDSPGO);
 
         //arguments
         //Debug.Log("trimsectionone duration = " + processedDurations[0]);
         //Debug.Log("slomoduration = " + slomoDuration);
         //Debug.Log("trimsectionthree duration = " + processedDurations[processedDurations.Length-1]);
         int allSamplesBeforeKfZero = (int)(processedDurations[0] * 44100f);
-        int allSamplesBeforeKfOne = (int)((processedDurations[0] + slomoDuration)*44100f);
-        int allSamples = (int)((processedDurations[0] + slomoDuration + processedDurations[processedDurations.Length-1]) * 44100f);
-        Debug.Log("slomoDuration = " + slomoDuration);
+        int allSamplesBeforeKfOne = (int)((processedDurations[0] + slomoDuration) * 44100f);
+        int allSamples = (int)((processedDurations[0] + slomoDuration + processedDurations[gpstffArr.Length - 1]) * 44100f);
+        //Debug.Log("slomoDuration = " + slomoDuration);
+        /*
+        for (int i = 0; i < gpstffArr.Length; i++)
+        {
+            Debug.Log("length of seg " + i + " = " + processedDurations[i]);
+            Debug.Log("slowMult of seg " + i + " = " + processedSlowMults[i]);
+        }
+        Debug.Log("slomoduration = " + slomoDuration);
         Debug.Log("allSamples = " + allSamples);
         Debug.Log("allSamplesBeforeKfZero = " + allSamplesBeforeKfZero);
         Debug.Log("allSamplesBeforeKfOne = " + allSamplesBeforeKfOne);
+        Debug.Log("total vid duration = " + ((float)(allSamples/44100f)));
+        */
 
         //making tsas
         Int16[] tsaLeft = new Int16[allSamples];
         Int16[] tsaRight = new Int16[allSamples];
 
         int segIndex = 0; //index into segDurations
-        int currSampleThreshold = (int)(processedDurations[0]*44100f);
+        int currSampleThreshold = (int)(processedDurations[0] * 44100f);
         float widthLine = 0;
         float heightLine = 0f;
         float m = 0f;
@@ -951,42 +990,38 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             if (i > currSampleThreshold)
             {
                 segIndex = segIndex + 1;
-                if(segIndex < processedDurations.Length)
+                if (segIndex < processedDurations.Length)
                 {
                     int tempSampleThreshold = currSampleThreshold;
                     currSampleThreshold += (int)(processedDurations[segIndex] * 44100f);
-                    int deltaThreshhold = currSampleThreshold - tempSampleThreshold;
-                    //Debug.Log("i=" + i + " currSampleThreshold=" + currSampleThreshold + " segIndex=" + segIndex + " estimatedClipSecs= " + deltaThreshhold/44100f);
                 }
-                if(segIndex > 0 && segIndex < processedDurations.Length-1)
+                if (segIndex > 0 && segIndex < processedDurations.Length - 1)
                 {
                     //in slomo section
-                    if(segIndex < midIdx)
+                    if (segIndex < midIdx)
                     {
                         widthLine = processedDurations[segIndex];
-                        heightLine = (gpstffArr[segIndex + 1].slowMult - gpstffArr[segIndex].slowMult);
+                        heightLine = (processedSlowMults[segIndex + 1] - processedSlowMults[segIndex]);
                         m = heightLine / widthLine; //needs to be negative
                         b = (heightLine * -1f) / 2;
-                        dt = 0f;
                         //Debug.Log("currSeconds = " + (i/44100f).ToString() + " segIdx is less widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
-                    else if(segIndex > midIdx)
+                    else if (segIndex > midIdx)
                     {
                         widthLine = processedDurations[segIndex];
-                        heightLine = -1f*((gpstffArr[segIndex - 1].slowMult - gpstffArr[segIndex].slowMult));
+                        heightLine = -1f * ((processedSlowMults[segIndex - 1] - processedSlowMults[segIndex]));
                         m = heightLine / widthLine; //needs to be positive
                         b = (heightLine * -1f) / 2;
-                        dt = 0f;
                         //Debug.Log("currSeconds = " + (i / 44100f).ToString() + " segIdx is greater widthLine=" + widthLine + " heightLine=" + heightLine + " m=" + m + " b=" + b + " dt=" + dt);
                     }
                     else
                     {
-                        dt = 0f;
+                        m = 0f;
+                        b = 0f;
                         //Debug.Log("currSeconds = " + (i / 44100f).ToString() + " slowMult = " + gpstffArr[segIndex].slowMult);
                     }
-
+                    dt = 0f;
                 }
-
             }
             //one to one array copy
             if (i < allSamplesBeforeKfZero || i > allSamplesBeforeKfOne)
@@ -1005,40 +1040,22 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             }
             else
             {
-                if(segIndex == midIdx)
-                {
-                    float valOnLine = (midA * ((dt - midH) * (dt - midH))) + midK;
-                    //Debug.Log("valOnLine = " + valOnLine);
-                    pval = Mathf.Min(gpstffArr[segIndex].slowMult + valOnLine, gpstffArr[segIndex].slowMult);
-                    //Debug.Log("MIDDLE pval = " + pval + " original slowMult = " + gpstffArr[segIndex].slowMult);
-                    fpval += pval;
-                    ipval = (int)fpval;
-                    inputTime = ipval + iRampVal;
-                    tsaLeft[i] = doaLeft[inputTime];
-                    tsaRight[i] = doaRight[inputTime];
-                    dt += 1 / (44100f);
-                    //Debug.Log("MID SEGMENT!! pval = " + pval + " fpval = " + fpval + " ipval = " + ipval + " inputTime = " + inputTime);
-                    //Debug.Log("mid inputTime=" + inputTime);
-                }
-                else
-                {
-                    float valOnLine = (m * dt + b);
-                    pval = gpstffArr[segIndex].slowMult + valOnLine;
-                    fpval += pval;
-                    ipval = (int)fpval;
-                    inputTime = ipval + iRampVal;
-                    tsaLeft[i] = doaLeft[inputTime];
-                    tsaRight[i] = doaRight[inputTime];
-                    //Debug.Log("pval = " + pval + " fpval = " + fpval + " ipval = " + ipval + " inputTime = " + inputTime);
-                    dt += 1 / (44100f);
-                }
+                float valOnLine = (m * dt + b);
+                pval = processedSlowMults[segIndex] + valOnLine;
+                fpval += pval;
+                ipval = (int)fpval;
+                inputTime = ipval + iRampVal;
+                tsaLeft[i] = doaLeft[inputTime];
+                tsaRight[i] = doaRight[inputTime];
+                //Debug.Log("pval = " + pval + " fpval = " + fpval + " ipval = " + ipval + " inputTime = " + inputTime);
+                dt += 1 / (44100f);
             }
         }
 
         //now to write tsa
         Int16[] tsa = new Int16[allSamples * 2];
         j = 0;
-        for (int i = 0; i < tsa.Length; i+=2)
+        for (int i = 0; i < tsa.Length; i += 2)
         {
             tsa[i] = tsaLeft[j];
             tsa[i + 1] = tsaRight[j];
@@ -1050,7 +1067,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         var binary = new BinaryWriter(file);
         byte[] tsaBytes = new byte[tsa.Length * 2]; //singleChannelCount*2 = total samples * 2 bytes per sample = total bytes
         j = 0;
-        for (int i = 0; i < tsaBytes.Length; i+=2)
+        for (int i = 0; i < tsaBytes.Length; i += 2)
         {
             byte[] valbytes = BitConverter.GetBytes(tsa[j]);
             tsaBytes[i] = valbytes[0];

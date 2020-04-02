@@ -3761,7 +3761,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Ramped Slomo \nVersion 1.0"
+  m_text: "Ramped Slomo \nVersion 1.0.1"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1ead8173525de9748adb982e5c6a98ab, type: 2}
   m_sharedMaterial: {fileID: 21567597413601168, guid: 1ead8173525de9748adb982e5c6a98ab,
@@ -3831,10 +3831,10 @@ MonoBehaviour:
   m_margin: {x: 0, y: 0, z: 0, w: 0}
   m_textInfo:
     textComponent: {fileID: 1455523572}
-    characterCount: 25
+    characterCount: 27
     spriteCount: 0
     spaceCount: 4
-    wordCount: 5
+    wordCount: 6
     linkCount: 0
     lineCount: 2
     pageCount: 1
