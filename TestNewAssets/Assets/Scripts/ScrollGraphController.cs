@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class ScrollGraphController : MonoBehaviour
 {
-    //i only support two keyframes... sorry
+    //i only support two keyframes
     [SerializeField] private GameObject _kf0;
     [SerializeField] private GameObject _kf1;
     [SerializeField] private GameObject _curveController;

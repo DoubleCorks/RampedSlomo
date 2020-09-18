@@ -140,7 +140,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             _videoTrack.value = _videoPlayer.frame / (float)_videoPlayer.frameCount;
             if(_videoPlayer.canSetPlaybackSpeed)
             {
-                float curSpeed = _graphManager.GetSpeed(_videoTrack.value, 0f);
+                float curSpeed = _graphManager.GetSpeed(_videoTrack.value);
                 _videoPlayer.playbackSpeed = curSpeed;
                 _audioSource.pitch = curSpeed;
             }
@@ -780,13 +780,13 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         {
             commands = "-ss&" + startTime + "&-t&" + duration + "&-y&-i&" +
                 _videoPlayer.url + "&-filter_complex&[0:v]setpts=PTS[v0]&-map&[v0]"
-                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" + HandleDirectory(vidTempDirectoryPath, fileName);
+                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&-r:0:v&30&" + HandleDirectory(vidTempDirectoryPath, fileName);
         }
         else
         {
             commands = "-ss&" + startTime + "&-t&" + duration + "&-y&-i&" +
                 _videoPlayer.url + "&-i&" + watermarkPath + "&-filter_complex&[0:v]setpts=PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0]&-map&[o0]"
-                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" + HandleDirectory(vidTempDirectoryPath, fileName);
+                + "&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&-r:0:v&30&" + HandleDirectory(vidTempDirectoryPath, fileName);
         }
         FFmpegCommands.AndDirectInput(commands);
     }
@@ -812,7 +812,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             commands = "-ss&" + startTime + "&-t&" + duration +
                 "&-y&-i&" + _videoPlayer.url +
                 "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0]" +
-                "&-map&[v0]&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" +
+                "&-map&[v0]&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&-r:0:v&30&" +
                 HandleDirectory(vidTempDirectoryPath, fileName);
         }
         else
@@ -820,7 +820,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
             commands = "-ss&" + startTime + "&-t&" + duration +
                 "&-y&-i&" + _videoPlayer.url + "&-i&" + watermarkPath +
                 "&-filter_complex&[0:v]setpts=" + slowMult + "*PTS[v0];[v0][1:0]overlay=10:0,format=yuv420p[o0]" +
-                "&-map&[o0]&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&" +
+                "&-map&[o0]&-c:v&libx264&-preset&ultrafast&-crf&17&-tune&zerolatency&-profile:v&baseline&-level&3.0&-r:0:v&30&" +
                 HandleDirectory(vidTempDirectoryPath, fileName);
         }
         FFmpegCommands.AndDirectInput(commands);
@@ -834,7 +834,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         Debug.Log("CONCATENATING SECTIONS");
         Debug.Log(File.ReadAllText(vidListPath));
         _progressText.text = "Concat demuxing";
-        string commands = "-f&concat&-safe&0&-y&-i&" + vidListPath + "&-c:v&copy&" + HandleDirectory(vidTempDirectoryPath, CONCATENATED_SECTIONS_FILENAME);
+        string commands = "-f&concat&-safe&0&-y&-i&" + vidListPath + "&-c:v&copy&-r:0:v&30&" + HandleDirectory(vidTempDirectoryPath, CONCATENATED_SECTIONS_FILENAME);
         FFmpegCommands.AndDirectInput(commands);
     }
 
@@ -1095,7 +1095,7 @@ public class ProjectManager : MonoBehaviour, IFFmpegHandler
         //ffmpeg -i input.mp4 -i input.mp3 -c copy -map 0:v:0 -map 1:a:0 output.mp4
         string outputString = FINAL_VIDEO_FILENAME + DateTime.Now.ToString("MMddyyyyHHmmss") + ".mp4";
         string commands = "-i&" + HandleDirectory(vidTempDirectoryPath, CONCATENATED_SECTIONS_FILENAME) + "&-i&" + HandleDirectory(vidTempDirectoryPath, TIME_SCALED_ENCODED_AUDIO_FILENAME) + "&-c:v&copy&" +
-            "-map&0:v&-map&1:a&-c:a&aac&-b:a&128k&" + HandleDirectory(vidFinalDirectoryPath, outputString);
+            "-map&0:v&-map&1:a&-c:a&aac&-b:a&128k&-r:0:v&30&" + HandleDirectory(vidFinalDirectoryPath, outputString);
         FFmpegCommands.AndDirectInput(commands);
     }
     #endregion
